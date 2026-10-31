@@ -1,18 +1,16 @@
-
 import os
 import sqlite3
 import subprocess
 import sys
-from pathlib import Path
 import uuid
 import json
+
+from pathlib import Path
 from datetime import datetime, timezone
 from io import BytesIO
 
-from flask import abort
+import pandas as pd
 
-from flask import send_file
-from werkzeug.utils import secure_filename
 from flask import (
     Flask,
     abort,
@@ -22,9 +20,22 @@ from flask import (
     request,
     session,
     url_for,
+    jsonify,
+    send_file,
 )
 
+from werkzeug.utils import secure_filename
+
 from config import DATABASE_PATH
+
+from src.progress import (
+    create_progress,
+    update_progress,
+    get_progress,
+    fail_progress,
+    set_current_job_id,
+    clear_current_job_id,
+)
 
 
 # ============================================================
@@ -32,16 +43,21 @@ from config import DATABASE_PATH
 # ============================================================
 
 BASE_DIR = Path(__file__).resolve().parent
+
 DB_PATH = Path(DATABASE_PATH)
 
 if not DB_PATH.is_absolute():
     DB_PATH = BASE_DIR / DB_PATH
 
 app = Flask(__name__)
+
 app.secret_key = os.getenv(
     "FLASK_SECRET_KEY",
     "local-dev-change-this",
 )
+
+# Maximum uploaded file size: 16 MB
+app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024
 
 
 # ============================================================
@@ -49,8 +65,12 @@ app.secret_key = os.getenv(
 # ============================================================
 
 def get_connection():
-    """Open a read-only connection to the existing SQLite database."""
+    """
+    Open a read-only connection to the existing SQLite database.
+    """
+
     if not DB_PATH.exists():
+
         raise FileNotFoundError(
             f"Database not found: {DB_PATH}. "
             "Run python run_pipeline.py first."
@@ -61,12 +81,15 @@ def get_connection():
         uri=True,
         timeout=10,
     )
+
     connection.row_factory = sqlite3.Row
+
     return connection
 
 
 def get_tables(connection):
     """Return existing database table names."""
+
     rows = connection.execute(
         """
         SELECT name
@@ -77,16 +100,21 @@ def get_tables(connection):
         """
     ).fetchall()
 
-    return {row["name"] for row in rows}
+    return {
+        row["name"]
+        for row in rows
+    }
 
 
 def quote_identifier(identifier):
     """Safely quote a database table or column name."""
+
     return '"' + str(identifier).replace('"', '""') + '"'
 
 
 def get_columns(connection, table):
     """Return column names for an existing table."""
+
     if table not in get_tables(connection):
         return []
 
@@ -100,9 +128,11 @@ def get_columns(connection, table):
 
 def get_primary_key(connection, table):
     """Find the primary key of a table."""
+
     for row in connection.execute(
         f"PRAGMA table_info({quote_identifier(table)})"
     ).fetchall():
+
         if row["pk"]:
             return row["name"]
 
@@ -116,6 +146,7 @@ def get_primary_key(connection, table):
 
 def get_rows(connection, table, limit=100):
     """Retrieve rows without assuming a fixed schema."""
+
     if table not in get_tables(connection):
         return [], []
 
@@ -124,7 +155,10 @@ def get_rows(connection, table, limit=100):
     if not columns:
         return [], []
 
-    primary_key = get_primary_key(connection, table)
+    primary_key = get_primary_key(
+        connection,
+        table,
+    )
 
     order_by = (
         f" ORDER BY {quote_identifier(primary_key)} DESC"
@@ -142,11 +176,15 @@ def get_rows(connection, table, limit=100):
         (limit,),
     ).fetchall()
 
-    return columns, [dict(row) for row in rows]
+    return columns, [
+        dict(row)
+        for row in rows
+    ]
 
 
 def count_rows(connection, table):
     """Count records in a table if it exists."""
+
     if table not in get_tables(connection):
         return 0
 
@@ -160,7 +198,6 @@ def count_rows(connection, table):
 # ============================================================
 
 def get_write_connection():
-
     """
     Open a writable SQLite connection.
 
@@ -176,7 +213,7 @@ def get_write_connection():
 
     connection = sqlite3.connect(
         str(DB_PATH),
-        timeout=20
+        timeout=20,
     )
 
     connection.row_factory = sqlite3.Row
@@ -259,7 +296,7 @@ def save_dataset_history(dataset_filename, results):
     results_json = json.dumps(
         results,
         ensure_ascii=False,
-        default=str
+        default=str,
     )
 
     connection = get_write_connection()
@@ -295,15 +332,15 @@ def save_dataset_history(dataset_filename, results):
                 int(results.get("incident_count", 0)),
                 int(results.get("saved_incident_count", 0)),
                 int(results.get("saved_analysis_count", 0)),
-                results_json
-            )
+                results_json,
+            ),
         )
 
         connection.commit()
 
         print(
             "[HISTORY] Dataset analysis saved:",
-            run_id
+            run_id,
         )
 
         return run_id
@@ -332,7 +369,7 @@ def get_dataset_history_record(run_id):
             WHERE id = ?
             LIMIT 1
             """,
-            (run_id,)
+            (run_id,),
         ).fetchone()
 
         return dict(row) if row else None
@@ -362,8 +399,10 @@ def parse_history_json(value):
 
         return value
 
+
 def find_value(record, *names, default="—"):
     """Get a value by column name without case sensitivity."""
+
     if not record:
         return default
 
@@ -373,6 +412,7 @@ def find_value(record, *names, default="—"):
     }
 
     for name in names:
+
         value = values.get(name.lower())
 
         if value is not None and value != "":
@@ -382,27 +422,88 @@ def find_value(record, *names, default="—"):
 
 
 # ============================================================
+# HELPER: CHECK AJAX REQUEST
+# ============================================================
+
+def is_ajax_request():
+    """
+    Identify requests made by the live-progress JavaScript.
+
+    The updated dataset_analysis.html sends the
+    X-Requested-With header.
+    """
+
+    return (
+        request.headers.get("X-Requested-With")
+        == "XMLHttpRequest"
+    )
+
+
+# ============================================================
+# HELPER: RETURN DATASET ANALYSIS ERROR
+# ============================================================
+
+def dataset_analysis_error(message, status_code=400):
+    """
+    Return errors in JSON for AJAX requests.
+    Use Flask flash messages for normal form submissions.
+    """
+
+    if is_ajax_request():
+
+        return jsonify({
+            "success": False,
+            "error": str(message),
+        }), status_code
+
+    flash(
+        str(message),
+        "error",
+    )
+
+    return redirect(
+        url_for("dataset_analysis")
+    )
+
+
+# ============================================================
 # DASHBOARD
 # ============================================================
 
 @app.route("/")
 def dashboard():
+
     try:
+
         with get_connection() as connection:
+
             tables = get_tables(connection)
 
-            log_count = count_rows(connection, "logs")
-            incident_count = count_rows(connection, "incidents")
+            log_count = count_rows(
+                connection,
+                "logs",
+            )
+
+            incident_count = count_rows(
+                connection,
+                "incidents",
+            )
+
             analysis_count = count_rows(
-                connection, "analysis_results"
+                connection,
+                "analysis_results",
             )
 
             _, incidents = get_rows(
-                connection, "incidents", limit=10
+                connection,
+                "incidents",
+                limit=10,
             )
 
             _, logs = get_rows(
-                connection, "logs", limit=10
+                connection,
+                "logs",
+                limit=10,
             )
 
             severity_counts = {
@@ -412,7 +513,11 @@ def dashboard():
             }
 
             if "incidents" in tables:
-                columns = get_columns(connection, "incidents")
+
+                columns = get_columns(
+                    connection,
+                    "incidents",
+                )
 
                 severity_column = next(
                     (
@@ -424,6 +529,7 @@ def dashboard():
                 )
 
                 if severity_column:
+
                     results = connection.execute(
                         f"""
                         SELECT
@@ -439,6 +545,7 @@ def dashboard():
                     ).fetchall()
 
                     for severity, count in results:
+
                         if severity in severity_counts:
                             severity_counts[severity] = count
 
@@ -455,7 +562,10 @@ def dashboard():
             )
 
     except (sqlite3.Error, FileNotFoundError) as exc:
-        app.logger.exception("Dashboard database error")
+
+        app.logger.exception(
+            "Dashboard database error"
+        )
 
         return render_template(
             "dashboard.html",
@@ -481,9 +591,13 @@ def dashboard():
 
 @app.route("/logs")
 def logs_page():
+
     try:
+
         with get_connection() as connection:
+
             if "logs" not in get_tables(connection):
+
                 return render_template(
                     "logs.html",
                     columns=[],
@@ -508,7 +622,10 @@ def logs_page():
         )
 
     except (sqlite3.Error, FileNotFoundError) as exc:
-        app.logger.exception("Unable to load security logs")
+
+        app.logger.exception(
+            "Unable to load security logs"
+        )
 
         return render_template(
             "logs.html",
@@ -524,8 +641,11 @@ def logs_page():
 
 @app.route("/incidents")
 def incidents_page():
+
     try:
+
         with get_connection() as connection:
+
             columns, rows = get_rows(
                 connection,
                 "incidents",
@@ -546,8 +666,15 @@ def incidents_page():
         )
 
     except (sqlite3.Error, FileNotFoundError) as exc:
-        app.logger.exception("Unable to load incidents")
-        flash(f"Unable to load incidents: {exc}", "error")
+
+        app.logger.exception(
+            "Unable to load incidents"
+        )
+
+        flash(
+            f"Unable to load incidents: {exc}",
+            "error",
+        )
 
         return render_template(
             "incidents.html",
@@ -563,13 +690,17 @@ def incidents_page():
 
 @app.route("/incidents/<int:incident_id>")
 def incident_detail(incident_id):
+
     try:
+
         with get_connection() as connection:
+
             if "incidents" not in get_tables(connection):
                 abort(404)
 
             primary_key = get_primary_key(
-                connection, "incidents"
+                connection,
+                "incidents",
             )
 
             if not primary_key:
@@ -589,11 +720,14 @@ def incident_detail(incident_id):
                 abort(404)
 
             incident = dict(row)
+
             analyses = []
 
             if "analysis_results" in get_tables(connection):
+
                 columns = get_columns(
-                    connection, "analysis_results"
+                    connection,
+                    "analysis_results",
                 )
 
                 foreign_key = next(
@@ -607,6 +741,7 @@ def incident_detail(incident_id):
                 )
 
                 if foreign_key:
+
                     analyses = [
                         dict(item)
                         for item in connection.execute(
@@ -627,9 +762,19 @@ def incident_detail(incident_id):
         )
 
     except (sqlite3.Error, FileNotFoundError) as exc:
-        app.logger.exception("Unable to load incident detail")
-        flash(f"Unable to load incident: {exc}", "error")
-        return redirect(url_for("incidents_page"))
+
+        app.logger.exception(
+            "Unable to load incident detail"
+        )
+
+        flash(
+            f"Unable to load incident: {exc}",
+            "error",
+        )
+
+        return redirect(
+            url_for("incidents_page")
+        )
 
 
 # ============================================================
@@ -644,18 +789,28 @@ def retrieve_chat_context(question, k=4):
         search_knowledge(query, k=3)
         format_rag_results(results)
     """
+
     from src.rag import (
         search_knowledge,
         format_rag_results,
     )
 
-    documents = search_knowledge(question, k=k)
+    documents = search_knowledge(
+        question,
+        k=k,
+    )
+
     context = format_rag_results(documents)
 
     sources = []
 
     for document in documents:
-        metadata = getattr(document, "metadata", {}) or {}
+
+        metadata = getattr(
+            document,
+            "metadata",
+            {},
+        ) or {}
 
         source = (
             metadata.get("source")
@@ -680,6 +835,7 @@ def generate_security_chat_answer(question, history):
     """
     Retrieve knowledge first, then generate an answer using Groq.
     """
+
     from config import GROQ_API_KEY, GROQ_MODEL
 
     api_key = (
@@ -693,17 +849,20 @@ def generate_security_chat_answer(question, history):
     )
 
     if not api_key:
+
         raise RuntimeError(
             "GROQ_API_KEY is missing. Add it to your .env file."
         )
 
     # Step 1: Retrieve relevant knowledge from Chroma.
+
     context, sources = retrieve_chat_context(
         question,
         k=4,
     )
 
     if not context or not str(context).strip():
+
         return (
             "I could not find relevant information in the security "
             "knowledge base for this question. Try asking about "
@@ -713,7 +872,9 @@ def generate_security_chat_answer(question, history):
         )
 
     # Step 2: Build the LLM with the configured Groq model.
+
     from langchain_groq import ChatGroq
+
     from langchain_core.messages import (
         SystemMessage,
         HumanMessage,
@@ -753,8 +914,11 @@ RETRIEVED KNOWLEDGE:
     ]
 
     # Include a small amount of conversation history.
+
     for item in history[-4:]:
+
         if item.get("role") == "user":
+
             messages.append(
                 HumanMessage(
                     content=item.get("content", "")[:700]
@@ -762,6 +926,7 @@ RETRIEVED KNOWLEDGE:
             )
 
         elif item.get("role") == "assistant":
+
             messages.append(
                 AIMessage(
                     content=item.get("content", "")[:900]
@@ -769,14 +934,19 @@ RETRIEVED KNOWLEDGE:
             )
 
     messages.append(
-        HumanMessage(content=question[:2000])
+        HumanMessage(
+            content=question[:2000]
+        )
     )
 
     # Step 3: Generate the answer.
+
     response = llm.invoke(messages)
+
     answer = response.content
 
     if isinstance(answer, list):
+
         answer = "\n".join(
             str(part.get("text", part))
             if isinstance(part, dict)
@@ -793,34 +963,50 @@ RETRIEVED KNOWLEDGE:
 
 @app.route("/chat", methods=["GET", "POST"])
 def chat_page():
+
     history = session.get(
-        "cybershield_chat_history", []
+        "cybershield_chat_history",
+        [],
     )
 
     if request.method == "POST":
-        action = request.form.get("action", "send")
+
+        action = request.form.get(
+            "action",
+            "send",
+        )
 
         if action == "clear":
+
             session.pop(
                 "cybershield_chat_history",
                 None,
             )
-            return redirect(url_for("chat_page"))
+
+            return redirect(
+                url_for("chat_page")
+            )
 
         question = request.form.get(
-            "question", ""
+            "question",
+            "",
         ).strip()
 
         if not question:
+
             flash(
                 "Please enter a cybersecurity question.",
                 "error",
             )
-            return redirect(url_for("chat_page"))
+
+            return redirect(
+                url_for("chat_page")
+            )
 
         question = question[:2000]
 
         # Read earlier messages before adding the new question.
+
         previous_history = history[-4:]
 
         history.append({
@@ -830,6 +1016,7 @@ def chat_page():
         })
 
         try:
+
             answer, sources = generate_security_chat_answer(
                 question,
                 previous_history,
@@ -842,6 +1029,7 @@ def chat_page():
             })
 
         except Exception:
+
             app.logger.exception(
                 "RAG security chat failed"
             )
@@ -860,10 +1048,14 @@ def chat_page():
 
         # Keep session data bounded because Flask's default
         # session is stored in a signed browser cookie.
+
         session["cybershield_chat_history"] = history[-6:]
+
         session.modified = True
 
-        return redirect(url_for("chat_page"))
+        return redirect(
+            url_for("chat_page")
+        )
 
     return render_template(
         "chat.html",
@@ -879,21 +1071,31 @@ def chat_page():
 def run_analysis():
     """
     Run the existing pipeline.
+
     Keep this endpoint local-only unless proper authentication
     and CSRF protection are configured.
     """
+
     pipeline_path = BASE_DIR / "run_pipeline.py"
 
     if not pipeline_path.exists():
+
         flash(
             "run_pipeline.py was not found.",
             "error",
         )
-        return redirect(url_for("dashboard"))
+
+        return redirect(
+            url_for("dashboard")
+        )
 
     try:
+
         result = subprocess.run(
-            [sys.executable, str(pipeline_path)],
+            [
+                sys.executable,
+                str(pipeline_path),
+            ],
             cwd=str(BASE_DIR),
             capture_output=True,
             text=True,
@@ -902,13 +1104,18 @@ def run_analysis():
         )
 
         if result.returncode == 0:
+
             flash(
                 "Security analysis completed successfully.",
                 "success",
             )
+
         else:
+
             output = (
-                result.stderr or result.stdout or ""
+                result.stderr
+                or result.stdout
+                or ""
             )[-1800:]
 
             flash(
@@ -917,18 +1124,23 @@ def run_analysis():
             )
 
     except subprocess.TimeoutExpired:
+
         flash(
             "Pipeline timed out after 10 minutes.",
             "error",
         )
 
     except OSError as exc:
+
         flash(
             f"Could not start the pipeline: {exc}",
             "error",
         )
 
-    return redirect(url_for("dashboard"))
+    return redirect(
+        url_for("dashboard")
+    )
+
 
 # ============================================================
 # DATASET UPLOAD CONFIGURATION
@@ -938,12 +1150,53 @@ UPLOAD_DIR = BASE_DIR / "data" / "uploads"
 
 UPLOAD_DIR.mkdir(
     parents=True,
-    exist_ok=True
+    exist_ok=True,
 )
 
-app.config["MAX_CONTENT_LENGTH"] = (
-    16 * 1024 * 1024
+
+# ============================================================
+# LIVE DATASET ANALYSIS PROGRESS API
+# ============================================================
+
+# ============================================================
+# LIVE DATASET ANALYSIS PROGRESS API
+# ============================================================
+
+@app.route(
+    "/dataset-analysis/progress/<string:job_id>",
+    methods=["GET"],
 )
+def dataset_analysis_progress(job_id):
+
+    """
+    Return live progress information.
+
+    IMPORTANT:
+    If the frontend requests progress before the POST request
+    creates the job, return a waiting response instead of 404.
+    """
+
+    progress = get_progress(job_id)
+
+    if progress is None:
+
+        return jsonify({
+
+            "job_id": job_id,
+
+            "status": "running",
+
+            "stage": "waiting",
+
+            "message": "Waiting for the analysis job to initialize.",
+
+            "percent": 0,
+
+            "events": [],
+
+        }), 200
+
+    return jsonify(progress), 200
 
 
 # ============================================================
@@ -952,7 +1205,7 @@ app.config["MAX_CONTENT_LENGTH"] = (
 
 @app.route(
     "/dataset-analysis",
-    methods=["GET", "POST"]
+    methods=["GET", "POST"],
 )
 def dataset_analysis():
 
@@ -965,67 +1218,108 @@ def dataset_analysis():
         return render_template(
             "dataset_analysis.html",
             results=None,
-            filename=None
+            filename=None,
         )
 
     # --------------------------------------------------------
-    # GET UPLOADED FILE
+    # GET FRONTEND JOB ID
     # --------------------------------------------------------
 
-    uploaded = request.files.get(
-        "dataset"
+    job_id = (
+        request.form.get("progress_id", "").strip()
+        or uuid.uuid4().hex
     )
 
-    if uploaded is None or not uploaded.filename:
-
-        flash(
-            "Please select a CSV dataset.",
-            "error"
-        )
-
-        return redirect(
-            url_for("dataset_analysis")
-        )
-
     # --------------------------------------------------------
-    # VALIDATE FILE EXTENSION
+    # CREATE PROGRESS BEFORE PROCESSING
     # --------------------------------------------------------
 
-    original_name = secure_filename(
-        uploaded.filename
-    )
+    uploaded = request.files.get("dataset")
 
-    if not original_name.lower().endswith(".csv"):
+    original_name = ""
 
-        flash(
-            "Only CSV files are supported.",
-            "error"
+    if uploaded and uploaded.filename:
+
+        original_name = secure_filename(
+            uploaded.filename
         )
 
-        return redirect(
-            url_for("dataset_analysis")
-        )
-
-    # Unique filename prevents overwriting another upload.
-    temp_path = UPLOAD_DIR / (
-        f"{uuid.uuid4().hex}_{original_name}"
+    create_progress(
+        job_id,
+        filename=original_name
     )
+
+    temp_path = None
+
+    # --------------------------------------------------------
+    # START DATASET ANALYSIS
+    # --------------------------------------------------------
 
     try:
 
-        # ----------------------------------------------------
-        # SAVE TEMPORARY DATASET
-        # ----------------------------------------------------
+        # ====================================================
+        # STEP 1 — INITIALIZATION
+        # ====================================================
+
+        update_progress(
+            job_id,
+            "initialization",
+            "Initializing dataset analysis.",
+            5
+        )
+
+        # ====================================================
+        # STEP 2 — VALIDATE UPLOAD
+        # ====================================================
+
+        if uploaded is None or not uploaded.filename:
+
+            raise ValueError(
+                "Please select a CSV dataset."
+            )
+
+        original_name = secure_filename(
+            uploaded.filename
+        )
+
+        if not original_name.lower().endswith(".csv"):
+
+            raise ValueError(
+                "Only CSV files are supported."
+            )
+
+        update_progress(
+            job_id,
+            "upload",
+            "Dataset file received successfully.",
+            10
+        )
+
+        # ====================================================
+        # STEP 3 — SAVE TEMPORARY FILE
+        # ====================================================
+
+        temp_path = UPLOAD_DIR / (
+            f"{uuid.uuid4().hex}_{original_name}"
+        )
 
         uploaded.save(temp_path)
 
-        print("\n[FLASK] Dataset uploaded:", original_name)
+        print(
+            "\n[FLASK] Dataset uploaded:",
+            original_name
+        )
 
-        # ----------------------------------------------------
-        # VALIDATE CSV COLUMNS
-        # ----------------------------------------------------
+        update_progress(
+            job_id,
+            "loading_dataset",
+            "Uploaded dataset saved. Reading CSV file.",
+            15
+        )
 
-        import pandas as pd
+        # ====================================================
+        # STEP 4 — VALIDATE CSV
+        # ====================================================
 
         preview = pd.read_csv(
             temp_path,
@@ -1033,12 +1327,14 @@ def dataset_analysis():
         )
 
         required_columns = {
+
             "timestamp",
             "user",
             "ip_address",
             "event_type",
             "status",
-            "resource"
+            "resource",
+
         }
 
         missing = sorted(
@@ -1052,24 +1348,60 @@ def dataset_analysis():
                 + ", ".join(missing)
             )
 
-        # ----------------------------------------------------
-        # BUILD LANGGRAPH
-        # ----------------------------------------------------
+        update_progress(
+            job_id,
+            "data_validation",
+            "CSV structure and required columns validated.",
+            20
+        )
+
+        # ====================================================
+        # STEP 5 — BUILD LANGGRAPH
+        # ====================================================
+
+        update_progress(
+            job_id,
+            "graph_initialization",
+            "Preparing the CyberShieldGPT LangGraph workflow.",
+            25
+        )
 
         from src.graph import build_cybershield_graph
 
         graph = build_cybershield_graph()
 
-        # ----------------------------------------------------
-        # EXECUTE COMPLETE WORKFLOW
-        # ----------------------------------------------------
+        # ====================================================
+        # STEP 6 — INITIALIZE LANGGRAPH STATE
+        # ====================================================
 
         initial_state = {
 
             "file_path": str(temp_path),
 
-            "upload_filename": original_name
+            "upload_filename": original_name,
+
         }
+
+        # ====================================================
+        # STEP 7 — CONNECT JOB ID TO LANGGRAPH
+        # ====================================================
+
+        set_current_job_id(job_id)
+
+        update_progress(
+            job_id,
+            "graph_execution",
+            "LangGraph workflow started.",
+            30
+        )
+
+        print(
+            "\n[FLASK] Starting LangGraph workflow."
+        )
+
+        # ====================================================
+        # STEP 8 — EXECUTE LANGGRAPH
+        # ====================================================
 
         state = graph.invoke(
             initial_state
@@ -1080,16 +1412,36 @@ def dataset_analysis():
             state.get("status")
         )
 
-        # ----------------------------------------------------
-        # COLLECT WORKFLOW OUTPUTS
-        # ----------------------------------------------------
+        # ====================================================
+        # STEP 9 — CHECK WORKFLOW STATUS
+        # ====================================================
+
+        if state.get("status") == "failed":
+
+            raise RuntimeError(
+                state.get(
+                    "error",
+                    "LangGraph workflow failed."
+                )
+            )
+
+        update_progress(
+            job_id,
+            "collecting_results",
+            "LangGraph execution completed. Collecting analysis results.",
+            85
+        )
+
+        # ====================================================
+        # STEP 10 — COLLECT WORKFLOW OUTPUTS
+        # ====================================================
 
         logs = state.get("logs")
 
         rule_results = state.get(
             "rule_results",
             []
-        )
+        ) or []
 
         ml_results = state.get(
             "ml_results"
@@ -1098,40 +1450,86 @@ def dataset_analysis():
         incidents = state.get(
             "incidents",
             []
-        )
+        ) or []
 
-        # ----------------------------------------------------
-        # MAP RESULTS BY IP
-        # ----------------------------------------------------
+        # ====================================================
+        # STEP 11 — MAP RAG RESULTS BY IP
+        # ====================================================
 
         rag_by_ip = {
+
             item["ip_address"]: item
-            for item in state.get("rag_results", [])
+
+            for item in state.get(
+                "rag_results",
+                []
+            )
+
         }
+
+        # ====================================================
+        # STEP 12 — MAP AI ANALYSES BY IP
+        # ====================================================
 
         analyses_by_ip = {
+
             item["ip_address"]: item["analysis"]
-            for item in state.get("log_analyses", [])
+
+            for item in state.get(
+                "log_analyses",
+                []
+            )
+
         }
+
+        # ====================================================
+        # STEP 13 — MAP THREAT CLASSIFICATIONS
+        # ====================================================
 
         threats_by_ip = {
+
             item["ip_address"]: item["threat_type"]
-            for item in state.get("threat_classifications", [])
+
+            for item in state.get(
+                "threat_classifications",
+                []
+            )
+
         }
+
+        # ====================================================
+        # STEP 14 — MAP RECOMMENDATIONS
+        # ====================================================
 
         recommendations_by_ip = {
+
             item["ip_address"]: item["recommendation"]
-            for item in state.get("recommendations", [])
+
+            for item in state.get(
+                "recommendations",
+                []
+            )
+
         }
+
+        # ====================================================
+        # STEP 15 — MAP REPORTS
+        # ====================================================
 
         reports_by_ip = {
+
             item["ip_address"]: item["report"]
-            for item in state.get("reports", [])
+
+            for item in state.get(
+                "reports",
+                []
+            )
+
         }
 
-        # ----------------------------------------------------
-        # ORGANIZE RULE RESULTS BY IP
-        # ----------------------------------------------------
+        # ====================================================
+        # STEP 16 — GROUP RULE RESULTS BY IP
+        # ====================================================
 
         rules_by_ip = {}
 
@@ -1146,9 +1544,9 @@ def dataset_analysis():
                 []
             ).append(rule)
 
-        # ----------------------------------------------------
-        # ORGANIZE ML RESULTS BY IP
-        # ----------------------------------------------------
+        # ====================================================
+        # STEP 17 — GROUP ML RESULTS BY IP
+        # ====================================================
 
         ml_by_ip = {}
 
@@ -1160,24 +1558,27 @@ def dataset_analysis():
                     str(row["ip_address"])
                 ] = row.to_dict()
 
-        # ----------------------------------------------------
-        # CREATE FRONTEND INCIDENT CARDS
-        # ----------------------------------------------------
+        # ====================================================
+        # STEP 18 — CREATE INCIDENT CARDS
+        # ====================================================
 
         incident_cards = []
 
         incident_ids = state.get(
             "stored_incident_ids",
             []
-        )
+        ) or []
 
-        for incident, incident_id in zip(
-            incidents,
-            incident_ids
-        ):
+        for index, incident in enumerate(incidents):
 
             ip = str(
                 incident["ip_address"]
+            )
+
+            incident_id = (
+                incident_ids[index]
+                if index < len(incident_ids)
+                else None
             )
 
             rag = rag_by_ip.get(
@@ -1260,12 +1661,13 @@ def dataset_analysis():
                 "report": reports_by_ip.get(
                     ip,
                     "Not generated."
-                )
+                ),
+
             })
 
-        # ----------------------------------------------------
-        # CALCULATE SUMMARY
-        # ----------------------------------------------------
+        # ====================================================
+        # STEP 19 — CALCULATE SUMMARY
+        # ====================================================
 
         total_logs = (
             int(len(logs))
@@ -1286,39 +1688,46 @@ def dataset_analysis():
 
         results = {
 
-    "status": state.get(
-        "status",
-        "completed"
-    ),
+            "status": state.get(
+                "status",
+                "completed"
+            ),
 
-    "total_logs": total_logs,
+            "total_logs": total_logs,
 
-    "rule_count": len(
-        rule_results
-    ),
+            "rule_count": len(
+                rule_results
+            ),
 
-    "ml_count": ml_count,
+            "ml_count": ml_count,
 
-    "incident_count": len(
-        incidents
-    ),
+            "incident_count": len(
+                incidents
+            ),
 
-    "saved_incident_count": len(
-        incident_ids
-    ),
+            "saved_incident_count": len(
+                incident_ids
+            ),
 
-    "saved_analysis_count": state.get(
-        "saved_analysis_count",
-        0
-    ),
+            "saved_analysis_count": state.get(
+                "saved_analysis_count",
+                0
+            ),
 
-    "incidents": incident_cards
-}
+            "incidents": incident_cards,
 
+        }
 
-        # ========================================================
-        # SAVE COMPLETED ANALYSIS TO HISTORY
-        # ========================================================
+        # ====================================================
+        # STEP 20 — SAVE ANALYSIS HISTORY
+        # ====================================================
+
+        update_progress(
+            job_id,
+            "saving_history",
+            "Saving completed analysis to dataset history.",
+            92
+        )
 
         history_id = save_dataset_history(
             dataset_filename=original_name,
@@ -1332,21 +1741,88 @@ def dataset_analysis():
             history_id
         )
 
-        # ----------------------------------------------------
-        # DISPLAY RESULTS
-        # ----------------------------------------------------
+        # ====================================================
+        # STEP 21 — COMPLETE PROGRESS
+        # ====================================================
 
-        return render_template(
+        update_progress(
+            job_id,
+            "completed",
+            "Dataset analysis completed successfully.",
+            100,
+            status="completed"
+        )
+
+        # ====================================================
+        # STEP 22 — RENDER RESULTS
+        # ====================================================
+
+        rendered_html = render_template(
             "dataset_analysis.html",
             results=results,
             filename=original_name
         )
+
+        # ====================================================
+        # STEP 23 — RETURN AJAX RESPONSE
+        # ====================================================
+
+        if is_ajax_request():
+
+            return jsonify({
+
+                "success": True,
+
+                "job_id": job_id,
+
+                "html": rendered_html,
+
+                "results": {
+
+                    "total_logs": total_logs,
+
+                    "rule_count": len(rule_results),
+
+                    "ml_count": ml_count,
+
+                    "incident_count": len(incidents),
+
+                    "saved_incident_count": len(incident_ids),
+
+                }
+
+            }), 200
+
+        # Normal form submission.
+
+        return rendered_html
+
+    # ========================================================
+    # ERROR HANDLING
+    # ========================================================
 
     except Exception as error:
 
         app.logger.exception(
             "Dataset analysis failed"
         )
+
+        fail_progress(
+            job_id,
+            str(error)
+        )
+
+        if is_ajax_request():
+
+            return jsonify({
+
+                "success": False,
+
+                "job_id": job_id,
+
+                "error": str(error),
+
+            }), 500
 
         flash(
             f"Dataset analysis failed: {error}",
@@ -1357,22 +1833,29 @@ def dataset_analysis():
             url_for("dataset_analysis")
         )
 
+    # ========================================================
+    # CLEANUP
+    # ========================================================
+
     finally:
 
-        # Remove temporary uploaded file.
-        # Processed logs and incidents remain in SQLite.
+        clear_current_job_id()
+
         try:
 
-            if temp_path.exists():
+            if temp_path and temp_path.exists():
 
                 temp_path.unlink()
+
+                print(
+                    "[FLASK] Temporary dataset removed."
+                )
 
         except OSError:
 
             app.logger.warning(
                 "Could not remove temporary upload."
             )
-
 
 
 # ============================================================
@@ -1414,7 +1897,7 @@ def dataset_analysis_history():
 
         return render_template(
             "dataset_analysis_history.html",
-            history=history
+            history=history,
         )
 
     except Exception as error:
@@ -1425,12 +1908,12 @@ def dataset_analysis_history():
 
         flash(
             f"Unable to load dataset history: {error}",
-            "error"
+            "error",
         )
 
         return render_template(
             "dataset_analysis_history.html",
-            history=[]
+            history=[],
         )
 
 
@@ -1450,7 +1933,6 @@ def download_dataset_history(run_id):
         )
 
         if record is None:
-
             abort(404)
 
         results = json.loads(
@@ -1462,7 +1944,9 @@ def download_dataset_history(run_id):
         # ----------------------------------------------------
 
         from docx import Document
-        from docx.shared import Inches, Pt
+
+        from docx.shared import Inches
+
         from docx.enum.text import WD_ALIGN_PARAGRAPH
 
         document = Document()
@@ -1470,6 +1954,7 @@ def download_dataset_history(run_id):
         section = document.sections[0]
 
         section.top_margin = Inches(0.7)
+
         section.bottom_margin = Inches(0.7)
 
         # ----------------------------------------------------
@@ -1478,7 +1963,7 @@ def download_dataset_history(run_id):
 
         title = document.add_heading(
             "CYBERSHIELDGPT",
-            0
+            0,
         )
 
         title.alignment = WD_ALIGN_PARAGRAPH.CENTER
@@ -1505,25 +1990,36 @@ def download_dataset_history(run_id):
             f"Status: {record['status']}"
         )
 
+        # ----------------------------------------------------
+        # EXECUTIVE SUMMARY
+        # ----------------------------------------------------
+
         document.add_heading(
             "1. Executive Summary",
-            level=1
+            level=1,
         )
 
         summary_table = document.add_table(
             rows=0,
-            cols=2
+            cols=2,
         )
 
         summary_table.style = "Light Shading Accent 1"
 
         summary_items = [
+
             ("Total Logs", record["total_logs"]),
+
             ("Rule Findings", record["rule_count"]),
+
             ("ML Anomalies", record["ml_count"]),
+
             ("Detected Incidents", record["incident_count"]),
+
             ("Saved Incidents", record["saved_incident_count"]),
-            ("Saved AI Analyses", record["saved_analysis_count"])
+
+            ("Saved AI Analyses", record["saved_analysis_count"]),
+
         ]
 
         for label, value in summary_items:
@@ -1531,6 +2027,7 @@ def download_dataset_history(run_id):
             cells = summary_table.add_row().cells
 
             cells[0].text = str(label)
+
             cells[1].text = str(value)
 
         # ----------------------------------------------------
@@ -1539,12 +2036,12 @@ def download_dataset_history(run_id):
 
         incidents = results.get(
             "incidents",
-            []
+            [],
         )
 
         document.add_heading(
             "2. Incident Analysis",
-            level=1
+            level=1,
         )
 
         if not incidents:
@@ -1555,12 +2052,12 @@ def download_dataset_history(run_id):
 
         for index, incident in enumerate(
             incidents,
-            start=1
+            start=1,
         ):
 
             document.add_heading(
                 f"Incident {index}",
-                level=2
+                level=2,
             )
 
             document.add_paragraph(
@@ -1583,14 +2080,18 @@ def download_dataset_history(run_id):
                 f"ML Anomaly: {incident.get('ml_anomaly', 'N/A')}"
             )
 
+            # ------------------------------------------------
+            # TRIGGERED RULES
+            # ------------------------------------------------
+
             document.add_heading(
                 "Triggered Rules",
-                level=3
+                level=3,
             )
 
             rules = incident.get(
                 "rule_details",
-                []
+                [],
             )
 
             if rules:
@@ -1599,7 +2100,7 @@ def download_dataset_history(run_id):
 
                     document.add_paragraph(
                         str(rule),
-                        style="List Bullet"
+                        style="List Bullet",
                     )
 
             else:
@@ -1608,51 +2109,63 @@ def download_dataset_history(run_id):
                     "No rule details available."
                 )
 
+            # ------------------------------------------------
+            # AI LOG ANALYSIS
+            # ------------------------------------------------
+
             document.add_heading(
                 "AI Log Analysis",
-                level=3
+                level=3,
             )
 
             document.add_paragraph(
                 str(
                     incident.get(
                         "log_analysis",
-                        "Not available"
+                        "Not available",
                     )
                 )
             )
 
+            # ------------------------------------------------
+            # THREAT CLASSIFICATION
+            # ------------------------------------------------
+
             document.add_heading(
                 "Threat Classification",
-                level=3
+                level=3,
             )
 
             document.add_paragraph(
                 str(
                     incident.get(
                         "threat_classification",
-                        "Not available"
+                        "Not available",
                     )
                 )
             )
 
+            # ------------------------------------------------
+            # RAG CONTEXT
+            # ------------------------------------------------
+
             document.add_heading(
                 "RAG Context",
-                level=3
+                level=3,
             )
 
             document.add_paragraph(
                 str(
                     incident.get(
                         "rag_context",
-                        "No RAG context available."
+                        "No RAG context available.",
                     )
                 )
             )
 
             sources = incident.get(
                 "sources",
-                []
+                [],
             )
 
             if sources:
@@ -1670,11 +2183,14 @@ def download_dataset_history(run_id):
 
             document.add_heading(
                 "Recommended Actions",
-                level=3
+                level=3,
             )
 
             recommendations = parse_history_json(
-                incident.get("recommendation", [])
+                incident.get(
+                    "recommendation",
+                    [],
+                )
             )
 
             if isinstance(recommendations, list):
@@ -1685,7 +2201,7 @@ def download_dataset_history(run_id):
 
                         document.add_paragraph(
                             f"Priority: {recommendation.get('priority', 'N/A')}",
-                            style="List Bullet"
+                            style="List Bullet",
                         )
 
                         document.add_paragraph(
@@ -1704,7 +2220,7 @@ def download_dataset_history(run_id):
 
                         document.add_paragraph(
                             str(recommendation),
-                            style="List Bullet"
+                            style="List Bullet",
                         )
 
             elif isinstance(recommendations, dict):
@@ -1713,7 +2229,7 @@ def download_dataset_history(run_id):
                     json.dumps(
                         recommendations,
                         ensure_ascii=False,
-                        indent=2
+                        indent=2,
                     )
                 )
 
@@ -1729,21 +2245,19 @@ def download_dataset_history(run_id):
 
             document.add_heading(
                 "Final Incident Report",
-                level=3
+                level=3,
             )
 
             document.add_paragraph(
                 str(
                     incident.get(
                         "report",
-                        "Not available"
+                        "Not available",
                     )
                 )
             )
 
-            document.add_paragraph(
-                " "
-            )
+            document.add_paragraph(" ")
 
         # ----------------------------------------------------
         # DISCLAIMER
@@ -1751,7 +2265,7 @@ def download_dataset_history(run_id):
 
         document.add_heading(
             "3. Analysis Limitations",
-            level=1
+            level=1,
         )
 
         document.add_paragraph(
@@ -1787,7 +2301,7 @@ def download_dataset_history(run_id):
             mimetype=(
                 "application/vnd.openxmlformats-officedocument."
                 "wordprocessingml.document"
-            )
+            ),
         )
 
     except Exception as error:
@@ -1798,7 +2312,7 @@ def download_dataset_history(run_id):
 
         flash(
             f"Unable to generate report: {error}",
-            "error"
+            "error",
         )
 
         return redirect(
@@ -1812,7 +2326,7 @@ def download_dataset_history(run_id):
 
 @app.route(
     "/dataset-analysis/history/<string:run_id>/delete",
-    methods=["POST"]
+    methods=["POST"],
 )
 def delete_dataset_history(run_id):
 
@@ -1827,7 +2341,7 @@ def delete_dataset_history(run_id):
                 DELETE FROM dataset_analysis_runs
                 WHERE id = ?
                 """,
-                (run_id,)
+                (run_id,),
             )
 
             connection.commit()
@@ -1842,14 +2356,14 @@ def delete_dataset_history(run_id):
 
             flash(
                 "Dataset analysis history deleted successfully.",
-                "success"
+                "success",
             )
 
         else:
 
             flash(
                 "Dataset history record was not found.",
-                "error"
+                "error",
             )
 
     except Exception as error:
@@ -1860,12 +2374,18 @@ def delete_dataset_history(run_id):
 
         flash(
             f"Unable to delete history: {error}",
-            "error"
+            "error",
         )
 
     return redirect(
         url_for("dataset_analysis_history")
     )
+
+
+# ============================================================
+# TEMPLATE FILTER: JSON
+# ============================================================
+
 @app.template_filter("from_json")
 def from_json_filter(value):
 
@@ -1876,17 +2396,23 @@ def from_json_filter(value):
         return value
 
     try:
+
         return json.loads(value)
 
     except (ValueError, TypeError):
+
         return []
+
+
 # ============================================================
 # START FLASK
 # ============================================================
 
 if __name__ == "__main__":
+
     app.run(
         host="127.0.0.1",
         port=5000,
         debug=False,
+        threaded=True,
     )

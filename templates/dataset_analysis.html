@@ -1,4 +1,3 @@
-
 {% extends "base.html" %}
 
 {% block content %}
@@ -15,6 +14,101 @@
     padding: 20px;
     color: #e5e7eb;
 }
+
+
+/* ============================================================
+   LIVE ANALYSIS PROGRESS
+============================================================ */
+
+.progress-panel {
+
+    background: #172033;
+    border: 1px solid #334155;
+    border-radius: 14px;
+    padding: 22px;
+    margin-top: 20px;
+    margin-bottom: 22px;
+
+}
+
+.progress-track {
+
+    width: 100%;
+    height: 9px;
+    background: #334155;
+    border-radius: 20px;
+    overflow: hidden;
+    margin-top: 15px;
+
+}
+
+.progress-fill {
+
+    height: 100%;
+    width: 0%;
+    background: #22c55e;
+    transition: width 0.4s ease;
+
+}
+
+.progress-percent {
+
+    color: #22c55e;
+    font-size: 22px;
+    font-weight: bold;
+
+}
+
+.progress-message {
+
+    color: #cbd5e1;
+    margin-top: 15px;
+    font-size: 14px;
+
+}
+
+.progress-events {
+
+    margin-top: 20px;
+    padding-left: 20px;
+
+}
+
+.progress-events li {
+
+    color: #cbd5e1;
+    padding: 8px 0;
+    border-bottom: 1px solid #334155;
+    font-size: 13px;
+
+}
+
+.progress-events li:last-child {
+
+    border-bottom: none;
+
+}
+
+.progress-time {
+
+    color: #64748b;
+    margin-right: 10px;
+    font-size: 11px;
+
+}
+
+.progress-completed {
+
+    color: #22c55e;
+
+}
+
+.progress-failed {
+
+    color: #ef4444;
+
+}
+
 
 .cyber-panel {
     background: #172033;
@@ -63,243 +157,200 @@
 
 .cyber-button {
     display: inline-block;
-    background: #2563eb;
-    color: white;
-    border: none;
-    padding: 12px 20px;
+    padding: 10px 18px;
     border-radius: 8px;
-    cursor: pointer;
     text-decoration: none;
-    font-size: 14px;
     font-weight: 600;
+    border: none;
+    cursor: pointer;
+    font-size: 13px;
+    transition: 0.2s ease;
 }
 
 .cyber-button:hover {
-    opacity: 0.88;
-    color: white;
-}
-
-.cyber-button-secondary {
-    background: #334155;
-}
-
-.cyber-button-download {
-    background: #047857;
-}
-
-.cyber-button-history {
-    background: #7c3aed;
+    opacity: 0.85;
 }
 
 .cyber-button:disabled {
-    opacity: 0.6;
+    opacity: 0.5;
     cursor: not-allowed;
 }
 
-/* ============================================================
-   SUMMARY STATISTICS
-============================================================ */
+.cyber-button-primary {
+    background: #2563eb;
+    color: white;
+}
+
+.cyber-button-download {
+    background: #059669;
+    color: white;
+}
+
+.cyber-button-history {
+    background: #475569;
+    color: white;
+}
 
 .cyber-grid {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
     gap: 15px;
+    margin-top: 20px;
 }
 
 .cyber-stat {
-    background: #0f172a;
+    background: #111c2e;
     border: 1px solid #334155;
     border-radius: 10px;
     padding: 18px;
 }
 
 .cyber-stat-label {
+    display: block;
     color: #94a3b8;
     font-size: 13px;
+    margin-bottom: 10px;
 }
 
 .cyber-stat strong {
-    display: block;
-    font-size: 28px;
-    margin-top: 8px;
+    font-size: 26px;
     color: #ffffff;
 }
 
-/* ============================================================
-   INCIDENT CARDS
-============================================================ */
-
 .cyber-incident {
-    background: #111c2e;
+    background: #172033;
     border: 1px solid #334155;
-    border-left: 5px solid #64748b;
-    border-radius: 12px;
+    border-radius: 14px;
     padding: 22px;
     margin-bottom: 22px;
-    overflow-wrap: anywhere;
 }
 
-.HIGH,
-.CRITICAL {
-    border-left-color: #ef4444;
+.cyber-incident.CRITICAL {
+    border-left: 5px solid #dc2626;
 }
 
-.MEDIUM {
-    border-left-color: #f59e0b;
+.cyber-incident.HIGH {
+    border-left: 5px solid #ea580c;
 }
 
-.LOW {
-    border-left-color: #22c55e;
+.cyber-incident.MEDIUM {
+    border-left: 5px solid #eab308;
+}
+
+.cyber-incident.LOW {
+    border-left: 5px solid #22c55e;
 }
 
 .cyber-section {
+    margin-top: 25px;
+    padding-top: 15px;
     border-top: 1px solid #334155;
-    margin-top: 18px;
-    padding-top: 18px;
 }
 
 .cyber-section h3 {
-    color: #ffffff;
-    margin-bottom: 14px;
+    color: #93c5fd;
+    margin-bottom: 12px;
+}
+
+.cyber-section h4 {
+    color: #cbd5e1;
+    margin-top: 18px;
 }
 
 .cyber-report {
+    background: #111c2e;
+    border: 1px solid #334155;
+    border-radius: 9px;
+    padding: 15px;
+    color: #cbd5e1;
     white-space: pre-wrap;
     overflow-wrap: anywhere;
-    line-height: 1.7;
-    color: #dbeafe;
+    line-height: 1.6;
+    margin-top: 10px;
 }
 
 .cyber-pre {
-    white-space: pre-wrap;
-    overflow-wrap: anywhere;
-    background: #0b1220;
-    padding: 14px;
-    border-radius: 8px;
+    background: #111c2e;
+    border: 1px solid #334155;
+    border-radius: 9px;
+    padding: 15px;
     color: #cbd5e1;
     overflow-x: auto;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+.cyber-recommendation {
+    background: #111c2e;
+    border: 1px solid #334155;
+    border-radius: 9px;
+    padding: 15px;
+    margin-top: 12px;
 }
 
 .cyber-tag {
     display: inline-block;
-    background: #263449;
-    padding: 5px 10px;
-    border-radius: 20px;
-    margin: 4px;
-    font-size: 12px;
+    background: #334155;
     color: #bfdbfe;
-}
-
-/* ============================================================
-   RECOMMENDATION CARDS
-============================================================ */
-
-.cyber-recommendation {
-    background: #0f172a;
-    border: 1px solid #334155;
-    border-radius: 9px;
-    padding: 15px;
-    margin-bottom: 12px;
-}
-
-.cyber-recommendation strong {
-    color: #ffffff;
+    padding: 5px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    margin: 4px;
 }
 
 .cyber-priority {
     display: inline-block;
-    padding: 4px 9px;
-    border-radius: 15px;
-    background: #7f1d1d;
-    color: #fecaca;
+    padding: 5px 10px;
+    border-radius: 6px;
     font-size: 11px;
     font-weight: bold;
     margin-bottom: 10px;
+    background: #334155;
+    color: #ffffff;
+}
+
+.cyber-priority.P1 {
+    background: #991b1b;
 }
 
 .cyber-priority.P2 {
-    background: #78350f;
-    color: #fde68a;
+    background: #9a3412;
 }
 
 .cyber-priority.P3 {
-    background: #164e63;
-    color: #a5f3fc;
+    background: #854d0e;
 }
+
+.cyber-priority.P4 {
+    background: #166534;
+}
+
 
 /* ============================================================
-   FLASH MESSAGES
+   RESPONSIVE DESIGN
 ============================================================ */
 
-.cyber-flash {
-    padding: 13px 16px;
-    border-radius: 8px;
-    margin-bottom: 12px;
-    border: 1px solid #334155;
-}
-
-.cyber-flash.success {
-    background: #064e3b;
-    color: #a7f3d0;
-}
-
-.cyber-flash.error,
-.cyber-flash.danger {
-    background: #7f1d1d;
-    color: #fecaca;
-}
-
-.cyber-flash.warning {
-    background: #78350f;
-    color: #fde68a;
-}
-
-.cyber-flash.info {
-    background: #1e3a8a;
-    color: #bfdbfe;
-}
-
-/* ============================================================
-   EMPTY STATE
-============================================================ */
-
-.cyber-empty {
-    background: #111c2e;
-    border: 1px dashed #475569;
-    border-radius: 12px;
-    padding: 35px;
-    text-align: center;
-}
-
-/* ============================================================
-   RESPONSIVE
-============================================================ */
-
-@media(max-width: 900px) {
-
-    .cyber-grid {
-        grid-template-columns: repeat(2, 1fr);
-    }
-
-}
-
-@media(max-width: 550px) {
+@media (max-width: 768px) {
 
     .cyber-container {
         padding: 12px;
     }
 
-    .cyber-grid {
-        grid-template-columns: 1fr;
-    }
-
     .cyber-panel,
     .cyber-incident {
-        padding: 16px;
+        padding: 15px;
     }
 
     .cyber-header {
         align-items: flex-start;
+    }
+
+    .cyber-header-actions {
+        width: 100%;
+    }
+
+    .cyber-button {
+        text-align: center;
     }
 
 }
@@ -324,13 +375,13 @@
 
             <p class="cyber-muted">
 
-                Upload security logs to perform complete
-                AI-powered threat detection and investigation.
+                Upload security logs and analyze them using
+                rule-based detection, machine learning,
+                RAG, and Agentic AI.
 
             </p>
 
         </div>
-
 
         <div class="cyber-header-actions">
 
@@ -338,33 +389,12 @@
                 href="{{ url_for('dataset_analysis_history') }}"
                 class="cyber-button cyber-button-history"
             >
-
                 View Analysis History
-
             </a>
 
         </div>
 
     </div>
-
-
-    <!-- ====================================================
-         FLASH MESSAGES
-    ===================================================== -->
-
-    {% with messages = get_flashed_messages(with_categories=true) %}
-
-        {% for category, message in messages %}
-
-            <div class="cyber-flash {{ category }}">
-
-                {{ message }}
-
-            </div>
-
-        {% endfor %}
-
-    {% endwith %}
 
 
     <!-- ====================================================
@@ -374,50 +404,46 @@
     <div class="cyber-panel">
 
         <h2 class="cyber-heading">
-            Upload Security Log Dataset
+            Upload Security Dataset
         </h2>
 
         <p class="cyber-muted">
 
-            Required CSV columns:
-
-            timestamp, user, ip_address,
-            event_type, status, resource.
+            Upload a CSV file containing security logs.
+            CyberShieldGPT will process the dataset and
+            identify suspicious activity.
 
         </p>
 
 
         <form
+            id="datasetUploadForm"
             method="POST"
+            action="{{ url_for('dataset_analysis') }}"
             enctype="multipart/form-data"
         >
 
             <div class="cyber-upload">
 
-                <h3>
-                    Select CSV Dataset
-                </h3>
-
-                <p class="cyber-muted">
-
-                    Upload your security log CSV file
-                    to begin threat detection.
-
-                </p>
-
                 <input
                     type="file"
                     name="dataset"
-                    accept=".csv,text/csv"
+                    accept=".csv"
                     required
                 >
+
+                <p class="cyber-muted">
+
+                    Supported format: CSV
+
+                </p>
 
             </div>
 
 
             <button
-                class="cyber-button"
                 type="submit"
+                class="cyber-button cyber-button-primary"
             >
 
                 Run Complete Threat Analysis
@@ -430,15 +456,129 @@
 
 
     <!-- ====================================================
+         LIVE BACKEND PROGRESS PANEL
+    ===================================================== -->
+
+    <div
+        id="analysisProgress"
+        class="progress-panel"
+        hidden
+        aria-live="polite"
+    >
+
+        <div class="cyber-header">
+
+            <div>
+
+                <h2 class="cyber-heading">
+                    Live Threat Analysis Progress
+                </h2>
+
+                <p class="cyber-muted">
+
+                    Real-time updates from the CyberShieldGPT
+                    backend workflow.
+
+                </p>
+
+            </div>
+
+
+            <div
+                id="progressPercent"
+                class="progress-percent"
+            >
+                0%
+            </div>
+
+        </div>
+
+
+        <!-- PROGRESS BAR -->
+
+        <div class="progress-track">
+
+            <div
+                id="progressFill"
+                class="progress-fill"
+            ></div>
+
+        </div>
+
+
+        <!-- CURRENT BACKEND ACTIVITY -->
+
+        <p
+            id="progressMessage"
+            class="progress-message"
+        >
+
+            Waiting for dataset upload...
+
+        </p>
+
+
+        <!-- BACKEND EVENT HISTORY -->
+
+        <div class="cyber-section">
+
+            <h3>
+                Backend Activity
+            </h3>
+
+            <ul
+                id="progressEvents"
+                class="progress-events"
+            >
+
+                <li>
+                    Waiting for analysis to start...
+                </li>
+
+            </ul>
+
+        </div>
+
+    </div>
+
+
+    <!-- ====================================================
+         FLASH MESSAGES
+    ===================================================== -->
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+
+        {% if messages %}
+
+            {% for category, message in messages %}
+
+                <div class="cyber-panel">
+
+                    <p>
+
+                        {{ message }}
+
+                    </p>
+
+                </div>
+
+            {% endfor %}
+
+        {% endif %}
+
+    {% endwith %}
+
+
+    <!-- ====================================================
          ANALYSIS RESULTS
     ===================================================== -->
 
     {% if results %}
 
 
-        <!-- ================================================
-             DATASET SUMMARY
-        ================================================= -->
+        <!-- =================================================
+             ANALYSIS SUMMARY
+        ================================================== -->
 
         <div class="cyber-panel">
 
@@ -1084,6 +1224,338 @@
 
 
 </div>
+
+
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+
+    const form = document.getElementById("datasetUploadForm");
+    const panel = document.getElementById("analysisProgress");
+
+    if (!form || !panel) {
+        return;
+    }
+
+    const fill = document.getElementById("progressFill");
+    const percentText = document.getElementById("progressPercent");
+    const messageText = document.getElementById("progressMessage");
+    const eventsList = document.getElementById("progressEvents");
+
+
+    /* ====================================================
+       DISPLAY LIVE BACKEND PROGRESS
+    ===================================================== */
+
+    function renderProgress(data) {
+
+        const percent = Math.max(
+            0,
+            Math.min(100, Number(data.percent || 0))
+        );
+
+        fill.style.width = percent + "%";
+
+        percentText.textContent = percent + "%";
+
+        messageText.textContent =
+            data.message || "Processing...";
+
+
+        eventsList.replaceChildren();
+
+
+        (data.events || []).forEach(function (event) {
+
+            const li = document.createElement("li");
+
+            const time = document.createElement("span");
+
+            const message = document.createElement("span");
+
+
+            time.className = "progress-time";
+
+            time.textContent = event.time
+                ? "[" + event.time + "] "
+                : "";
+
+
+            message.textContent = event.message || "";
+
+
+            if (event.status === "completed") {
+
+                message.classList.add("progress-completed");
+
+            } else if (event.status === "failed") {
+
+                message.classList.add("progress-failed");
+
+            }
+
+
+            li.append(time, message);
+
+            eventsList.appendChild(li);
+
+        });
+
+    }
+
+
+
+    /* ====================================================
+       INTERCEPT DATASET FORM SUBMISSION
+    ===================================================== */
+
+    form.addEventListener("submit", async function (event) {
+
+        event.preventDefault();
+
+
+        const fileInput = form.querySelector(
+            'input[name="dataset"]'
+        );
+
+
+        if (!fileInput || !fileInput.files.length) {
+
+            fileInput?.reportValidity();
+
+            return;
+
+        }
+
+
+        const submitButton = form.querySelector(
+            'button[type="submit"]'
+        );
+
+
+        const originalButtonText = submitButton
+            ? submitButton.textContent
+            : "";
+
+
+        /* Generate a unique ID for this analysis run. */
+
+        const jobId = (
+
+            window.crypto && window.crypto.randomUUID
+
+        ) ? window.crypto.randomUUID() : (
+
+            Date.now().toString(36) +
+            Math.random().toString(36).slice(2)
+
+        );
+
+
+        const formData = new FormData(form);
+
+        formData.set("progress_id", jobId);
+
+
+        /* Show the progress panel. */
+
+        panel.hidden = false;
+
+
+        renderProgress({
+
+            percent: 2,
+
+            message: "Uploading dataset and preparing analysis...",
+
+            events: []
+
+        });
+
+
+        /* Prevent multiple submissions. */
+
+        if (submitButton) {
+
+            submitButton.disabled = true;
+
+            submitButton.textContent = "Analysis Running...";
+
+        }
+
+
+        /* Build the progress API URL using Flask routing. */
+
+        const progressUrlTemplate =
+            "{{ url_for('dataset_analysis_progress', job_id='JOB_ID_PLACEHOLDER') }}";
+
+
+        const progressUrl = progressUrlTemplate.replace(
+
+            "JOB_ID_PLACEHOLDER",
+
+            encodeURIComponent(jobId)
+
+        );
+
+
+        let stopPolling = false;
+
+
+        /* =================================================
+           POLL BACKEND PROGRESS
+        ================================================== */
+
+        const pollTask = (async function () {
+
+            while (!stopPolling) {
+
+                try {
+
+                    const response = await fetch(
+
+                        progressUrl,
+
+                        {
+
+                            method: "GET",
+
+                            cache: "no-store"
+
+                        }
+
+                    );
+
+
+                    if (response.ok) {
+
+                        const data = await response.json();
+
+                        renderProgress(data);
+
+
+                        /*
+                         Stop polling only when the complete
+                         backend job finishes or fails.
+                        */
+
+                        if (
+                            data.status === "completed" ||
+                            data.status === "failed"
+                        ) {
+
+                            break;
+
+                        }
+
+                    }
+
+                } catch (error) {
+
+                    console.debug(
+                        "Progress refresh:",
+                        error
+                    );
+
+                }
+
+
+                await new Promise(
+
+                    resolve => setTimeout(resolve, 650)
+
+                );
+
+            }
+
+        })();
+
+
+
+        /* =================================================
+           SUBMIT DATASET TO FLASK BACKEND
+        ================================================== */
+
+        try {
+
+            const response = await fetch(
+
+                form.action || window.location.href,
+
+                {
+
+                    method: "POST",
+
+                    body: formData,
+
+                    headers: {
+
+                        "X-Requested-With": "XMLHttpRequest"
+
+                    }
+
+                }
+
+            );
+
+
+            const data = await response.json();
+
+
+            if (!response.ok || !data.success) {
+
+                throw new Error(
+                    data.error || "Dataset analysis failed."
+                );
+
+            }
+
+
+            /*
+             The backend has completed the analysis and
+             returned the rendered results page.
+
+             Stop progress polling and display the results.
+            */
+
+            stopPolling = true;
+
+            await pollTask;
+
+
+            document.open();
+
+            document.write(data.html);
+
+            document.close();
+
+
+        } catch (error) {
+
+            stopPolling = true;
+
+            await pollTask;
+
+
+            messageText.textContent = error.message;
+
+            messageText.classList.add("progress-failed");
+
+
+            if (submitButton) {
+
+                submitButton.disabled = false;
+
+                submitButton.textContent = originalButtonText;
+
+            }
+
+        }
+
+    });
+
+});
+</script>
 
 
 {% endblock %}

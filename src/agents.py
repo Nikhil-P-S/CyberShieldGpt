@@ -6,6 +6,11 @@ from config import (
     GROQ_API_KEY,
     GROQ_MODEL
 )
+
+from src.progress import (
+    update_progress,
+    get_current_job_id
+)
 import json
 
 from src.database import store_analysis
@@ -83,10 +88,19 @@ def ask_groq(prompt):
 # ============================================================
 # NODE 1 — PREPROCESSING AGENT
 # ============================================================
+# ============================================================
+# NODE 1 — PREPROCESSING AGENT
+# ============================================================
 
 def preprocess_node(state):
 
     print("\n[AGENT] Preprocessing Agent")
+
+    report_progress(
+        "preprocessing",
+        "Preprocessing Agent started. Reading uploaded security logs.",
+        8
+    )
 
     file_path = state["file_path"]
 
@@ -94,13 +108,24 @@ def preprocess_node(state):
         file_path
     )
 
+    report_progress(
+        "preprocessing",
+        f"Preprocessing completed. Processed {len(logs)} security logs and extracted behavioral features.",
+        20
+    )
+
     return {
+
         "logs": logs,
+
         "behavioral_features": behavioral_features,
+
         "status": "preprocessed"
     }
 
-
+# ============================================================
+# NODE 2 — RULE + ML DETECTION AGENT
+# ============================================================
 # ============================================================
 # NODE 2 — RULE + ML DETECTION AGENT
 # ============================================================
@@ -108,6 +133,12 @@ def preprocess_node(state):
 def detection_node(state):
 
     print("\n[AGENT] Security Detection Agent")
+
+    report_progress(
+        "detection",
+        "Security Detection Agent started. Running rule-based detection.",
+        25
+    )
 
     logs = state["logs"]
 
@@ -129,6 +160,12 @@ def detection_node(state):
         len(rule_results)
     )
 
+    report_progress(
+        "detection",
+        f"Rule-based detection completed. Found {len(rule_results)} rule findings. Starting ML anomaly detection.",
+        34
+    )
+
     # --------------------------------------------------------
     # MACHINE LEARNING DETECTION
     # --------------------------------------------------------
@@ -146,6 +183,12 @@ def detection_node(state):
         ml_count
     )
 
+    report_progress(
+        "detection",
+        f"Isolation Forest completed. Detected {ml_count} anomalous records.",
+        41
+    )
+
     # --------------------------------------------------------
     # COMBINE RULE + ML OUTPUTS
     # --------------------------------------------------------
@@ -161,14 +204,27 @@ def detection_node(state):
         len(incidents)
     )
 
+    report_progress(
+        "detection",
+        f"Detection completed. Combined results into {len(incidents)} incidents.",
+        45
+    )
+
     return {
+
         "rule_results": rule_results,
+
         "ml_results": ml_results,
+
         "incidents": incidents,
+
         "status": "detection_completed"
     }
 
 
+# ============================================================
+# NODE 3 — DATABASE AGENT
+# ============================================================
 # ============================================================
 # NODE 3 — DATABASE AGENT
 # ============================================================
@@ -177,17 +233,34 @@ def database_node(state):
 
     print("\n[AGENT] Database Agent")
 
+    report_progress(
+        "database",
+        "Database Agent started. Preparing SQLite database.",
+        50
+    )
+
     create_database()
 
-    # Save all uploaded logs.
+    # Save all uploaded logs
     stored_log_count = store_logs(
         state["logs"]
     )
 
-    # Save detected incidents.
+    report_progress(
+        "database",
+        f"Stored {stored_log_count} security logs in SQLite.",
+        55
+    )
+
+    # Save detected incidents
     stored_incident_ids = []
 
-    for incident in state.get("incidents", []):
+    incidents = state.get(
+        "incidents",
+        []
+    )
+
+    for incident in incidents:
 
         incident_id = store_incident(
             incident
@@ -207,13 +280,23 @@ def database_node(state):
         len(stored_incident_ids)
     )
 
+    report_progress(
+        "database",
+        f"Database operation completed. Stored {len(stored_incident_ids)} incidents.",
+        60
+    )
+
     return {
+
         "stored_log_count": stored_log_count,
+
         "stored_incident_ids": stored_incident_ids,
+
         "status": "database_saved"
     }
-
-
+# ============================================================
+# NODE 4 — RAG KNOWLEDGE RETRIEVAL AGENT
+# ============================================================
 # ============================================================
 # NODE 4 — RAG KNOWLEDGE RETRIEVAL AGENT
 # ============================================================
@@ -222,15 +305,41 @@ def rag_node(state):
 
     print("\n[AGENT] RAG Knowledge Retrieval Agent")
 
+    incidents = state.get(
+        "incidents",
+        []
+    )
+
+    total_incidents = len(incidents)
+
+    report_progress(
+        "rag",
+        "RAG Agent started. Initializing cybersecurity knowledge retrieval.",
+        65
+    )
+
     initialize_rag()
 
     rag_results = []
 
-    for incident in state.get("incidents", []):
+    for index, incident in enumerate(
+        incidents,
+        start=1
+    ):
+
+        ip = str(
+            incident["ip_address"]
+        )
 
         print(
             "[RAG] Retrieving knowledge for:",
-            incident["ip_address"]
+            ip
+        )
+
+        report_progress(
+            "rag",
+            f"Retrieving cybersecurity knowledge for incident {index}/{total_incidents} — {ip}.",
+            65 + int(7 * index / max(total_incidents, 1))
         )
 
         retrieved = retrieve_incident_knowledge(
@@ -240,21 +349,26 @@ def rag_node(state):
 
         sources = []
 
-        for document in retrieved.get("results", []):
+        for document in retrieved.get(
+            "results",
+            []
+        ):
 
             metadata = document.metadata or {}
 
             sources.append({
+
                 "source": metadata.get(
                     "source_file",
                     metadata.get("source", "Unknown")
                 ),
+
                 "content": document.page_content
             })
 
         rag_results.append({
 
-            "ip_address": incident["ip_address"],
+            "ip_address": ip,
 
             "query": retrieved.get(
                 "query",
@@ -269,17 +383,18 @@ def rag_node(state):
             "sources": sources
         })
 
-    print(
-        "[RAG] Knowledge retrieved for:",
-        len(rag_results),
-        "incidents"
+    report_progress(
+        "rag",
+        f"RAG completed. Retrieved cybersecurity knowledge for {len(rag_results)} incidents.",
+        72
     )
 
     return {
+
         "rag_results": rag_results,
+
         "status": "knowledge_retrieved"
     }
-
 
 # ============================================================
 # HELPER — ORGANIZE EVIDENCE BY IP
@@ -594,6 +709,29 @@ IMPORTANT:
 # ============================================================
 # NODE 8 — FINAL INCIDENT REPORT AGENT
 # ============================================================
+# ============================================================
+# LIVE PROGRESS HELPER
+# ============================================================
+
+def report_progress(
+    stage,
+    message,
+    percent,
+    status="running"
+):
+
+    job_id = get_current_job_id()
+
+    if job_id:
+
+        update_progress(
+            job_id=job_id,
+            stage=stage,
+            message=message,
+            percent=percent,
+            status=status
+        )
+
 
 def report_generation_node(state):
 
@@ -708,6 +846,12 @@ RULES:
 def save_analysis_node(state):
 
     print("\n[AGENT] Saving AI analysis")
+
+    report_progress(
+    "saving",
+    "Saving AI-generated threat classifications, explanations and recommendations to SQLite.",
+    94
+)
 
     combined_results = state.get(
         "combined_ai_results",
@@ -833,6 +977,12 @@ def save_analysis_node(state):
         f"\n[AGENT] Successfully saved {saved_count} AI analyses."
     )
 
+    report_progress(
+    "saving",
+    f"Finished saving AI analysis. Saved {saved_count} incident analyses.",
+    98
+)
+    
     return state
 
 
@@ -843,6 +993,12 @@ def save_analysis_node(state):
 def optimized_ai_node(state):
 
     print("\n[CYBERSHIELDGPT] Optimized AI analysis started")
+
+    report_progress(
+    "ai_analysis",
+    "Groq AI analysis started. Preparing incident evidence.",
+    76
+)
 
     incidents = state.get("incidents", [])
 
@@ -859,6 +1015,15 @@ def optimized_ai_node(state):
         ip = str(incident.get("ip_address"))
 
         print(f"\n[AI] Processing incident: {ip}")
+
+        report_progress(
+    "ai_analysis",
+    f"Groq is analyzing incident {ip}. Combining rule, ML and RAG evidence.",
+    78 + int(
+        11 * (len(combined_results) + 1)
+        / max(len(incidents), 1)
+    )
+)
 
         # ----------------------------------------
         # Get rules for this incident
@@ -919,6 +1084,11 @@ def optimized_ai_node(state):
             log_sample=[]
         )
 
+        report_progress(
+    "ai_analysis",
+    f"Groq AI analysis completed for incident {ip}.",
+    89
+)
         # ----------------------------------------
         # Store structured result in state
         # ----------------------------------------
@@ -991,8 +1161,17 @@ def optimized_ai_node(state):
 
     print("\n[CYBERSHIELDGPT] Optimized AI analysis completed")
 
+    report_progress(
+    "ai_analysis",
+    f"AI analysis completed for all {len(incidents)} incidents.",
+    91
+)
+
     return state
 
+# ============================================================
+# NODE 10 — FINISH
+# ============================================================
 # ============================================================
 # NODE 10 — FINISH
 # ============================================================
@@ -1002,6 +1181,12 @@ def finish_node(state):
     print("\n======================================")
     print("CYBERSHIELDGPT WORKFLOW COMPLETED")
     print("======================================")
+
+    report_progress(
+        "finish",
+        "All LangGraph processing nodes have completed successfully.",
+        96
+    )
 
     return {
         "status": "completed"
