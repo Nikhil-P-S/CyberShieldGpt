@@ -1,0 +1,421 @@
+
+{% extends "base.html" %}
+
+{% block title %}Security Chat | CyberShieldGPT{% endblock %}
+
+{% block content %}
+
+<style>
+.chat-page {
+    max-width: 1050px;
+    margin: 0 auto;
+}
+
+.chat-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.chat-header h1 {
+    margin: 0 0 8px;
+}
+
+.chat-description {
+    color: var(--muted, #9aa9bf);
+    line-height: 1.7;
+}
+
+.chat-badge {
+    border: 1px solid var(--border, #2a3950);
+    border-radius: 20px;
+    padding: 8px 12px;
+    font-size: 12px;
+    white-space: nowrap;
+}
+
+.chat-panel {
+    border: 1px solid var(--border, #2a3950);
+    background: var(--panel, #101a2b);
+    border-radius: 14px;
+    overflow: hidden;
+}
+
+.chat-messages {
+    min-height: 330px;
+    max-height: 60vh;
+    overflow-y: auto;
+    padding: 22px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.chat-welcome {
+    text-align: center;
+    padding: 35px 10px;
+}
+
+.chat-welcome h2 {
+    margin-bottom: 8px;
+}
+
+.chat-welcome p {
+    color: var(--muted, #9aa9bf);
+    line-height: 1.6;
+}
+
+.chat-suggestions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 9px;
+    margin-top: 20px;
+}
+
+.chat-suggestion {
+    border: 1px solid var(--border, #2a3950);
+    background: var(--panel-light, #18263b);
+    color: var(--text, #edf3ff);
+    border-radius: 9px;
+    padding: 10px 12px;
+    font-size: 12px;
+    cursor: pointer;
+}
+
+.chat-suggestion:hover {
+    border-color: #60a5fa;
+}
+
+.chat-message {
+    max-width: 90%;
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+}
+
+.chat-message.user {
+    align-self: flex-end;
+    align-items: flex-end;
+}
+
+.chat-message.assistant {
+    align-self: flex-start;
+    align-items: flex-start;
+}
+
+.chat-role {
+    font-size: 11px;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--muted, #9aa9bf);
+}
+
+.chat-bubble {
+    padding: 14px 16px;
+    border-radius: 12px;
+    line-height: 1.75;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+.chat-message.user .chat-bubble {
+    background: #174b78;
+    color: white;
+    border-bottom-right-radius: 4px;
+}
+
+.chat-message.assistant .chat-bubble {
+    background: var(--panel-light, #18263b);
+    border: 1px solid var(--border, #2a3950);
+    border-bottom-left-radius: 4px;
+}
+
+.chat-sources {
+    margin-top: 6px;
+    padding: 12px;
+    border-left: 3px solid #60a5fa;
+    border-radius: 7px;
+    background: rgba(96, 165, 250, .08);
+    color: var(--muted, #9aa9bf);
+    font-size: 12px;
+}
+
+.chat-sources ul {
+    padding-left: 20px;
+    margin-bottom: 0;
+}
+
+.chat-composer {
+    padding: 16px;
+    border-top: 1px solid var(--border, #2a3950);
+}
+
+.chat-form {
+    display: flex;
+    align-items: flex-end;
+    gap: 10px;
+}
+
+.chat-input {
+    flex: 1;
+    min-width: 0;
+    min-height: 54px;
+    max-height: 150px;
+    resize: vertical;
+    padding: 13px;
+    font: inherit;
+    color: var(--text, #edf3ff);
+    background: var(--panel-light, #18263b);
+    border: 1px solid var(--border, #2a3950);
+    border-radius: 10px;
+}
+
+.chat-send {
+    padding: 14px 18px;
+    border: 0;
+    border-radius: 9px;
+    background: #2563eb;
+    color: white;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.chat-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    margin-top: 12px;
+}
+
+.chat-note {
+    color: var(--muted, #9aa9bf);
+    font-size: 11px;
+    line-height: 1.6;
+}
+
+.chat-clear {
+    padding: 9px 12px;
+    background: transparent;
+    color: var(--muted, #9aa9bf);
+    border: 1px solid var(--border, #2a3950);
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+@media (max-width: 650px) {
+    .chat-header {
+        flex-direction: column;
+    }
+
+    .chat-message {
+        max-width: 100%;
+    }
+
+    .chat-form {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .chat-send {
+        width: 100%;
+    }
+
+    .chat-actions {
+        align-items: flex-start;
+    }
+}
+</style>
+
+<section class="chat-page">
+
+    <div class="chat-header">
+        <div>
+            <p class="eyebrow">
+                CYBERSHIELD GPT / SECURITY COPILOT
+            </p>
+
+            <h1>Security Chat</h1>
+
+            <p class="chat-description">
+                Ask cybersecurity questions and get answers grounded
+                in relevant documents from the security knowledge base.
+            </p>
+        </div>
+
+        <span class="chat-badge">
+            CHROMA RAG + GROQ
+        </span>
+    </div>
+
+    <section class="chat-panel">
+
+        <div class="chat-messages" id="chatMessages">
+
+            {% if history %}
+
+                {% for message in history %}
+
+                    <article class="chat-message {{ message.role }}">
+
+                        <span class="chat-role">
+                            {% if message.role == "user" %}
+                                You
+                            {% else %}
+                                CyberShieldGPT
+                            {% endif %}
+                        </span>
+
+                        <div class="chat-bubble">{{ message.content }}</div>
+
+                        {% if message.role == "assistant" and message.sources %}
+
+                            <div class="chat-sources">
+                                <strong>Retrieved knowledge sources</strong>
+
+                                <ul>
+                                    {% for source in message.sources %}
+                                        <li>{{ source }}</li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+
+                        {% endif %}
+
+                    </article>
+
+                {% endfor %}
+
+            {% else %}
+
+                <div class="chat-welcome">
+                    <h2>How can I help you investigate?</h2>
+
+                    <p>
+                        Ask a question below. CyberShieldGPT will retrieve
+                        relevant knowledge before generating an answer.
+                    </p>
+
+                    <div class="chat-suggestions">
+
+                        <button
+                            class="chat-suggestion"
+                            type="button"
+                            data-question="How do I detect a brute-force attack?"
+                        >
+                            Detect brute-force attacks
+                        </button>
+
+                        <button
+                            class="chat-suggestion"
+                            type="button"
+                            data-question="What should I investigate after repeated failed logins?"
+                        >
+                            Investigate failed logins
+                        </button>
+
+                        <button
+                            class="chat-suggestion"
+                            type="button"
+                            data-question="How can I respond to credential stuffing?"
+                        >
+                            Respond to credential stuffing
+                        </button>
+
+                        <button
+                            class="chat-suggestion"
+                            type="button"
+                            data-question="What are signs of privilege escalation?"
+                        >
+                            Detect privilege escalation
+                        </button>
+
+                    </div>
+                </div>
+
+            {% endif %}
+
+        </div>
+
+        <div class="chat-composer">
+
+            <form
+                class="chat-form"
+                method="POST"
+                action="{{ url_for('chat_page') }}"
+            >
+                <textarea
+                    id="chatQuestion"
+                    name="question"
+                    class="chat-input"
+                    rows="2"
+                    maxlength="2000"
+                    placeholder="Ask a cybersecurity question..."
+                    aria-label="Cybersecurity question"
+                    required
+                ></textarea>
+
+                <button
+                    class="chat-send"
+                    type="submit"
+                    name="action"
+                    value="send"
+                >
+                    Send
+                </button>
+            </form>
+
+            <div class="chat-actions">
+
+                <span class="chat-note">
+                    RAG retrieves supporting documents; Groq generates
+                    the response. Verify security actions against your
+                    actual logs and organizational policies.
+                </span>
+
+                <form
+                    method="POST"
+                    action="{{ url_for('chat_page') }}"
+                >
+                    <button
+                        class="chat-clear"
+                        type="submit"
+                        name="action"
+                        value="clear"
+                    >
+                        Clear chat
+                    </button>
+                </form>
+
+            </div>
+
+        </div>
+
+    </section>
+
+</section>
+
+<script>
+(function () {
+    const messages = document.getElementById("chatMessages");
+    const input = document.getElementById("chatQuestion");
+
+    if (messages) {
+        messages.scrollTop = messages.scrollHeight;
+    }
+
+    document.querySelectorAll("[data-question]").forEach(function (button) {
+        button.addEventListener("click", function () {
+            if (input) {
+                input.value = this.dataset.question;
+                input.focus();
+            }
+        });
+    });
+})();
+</script>
+
+{% endblock %}

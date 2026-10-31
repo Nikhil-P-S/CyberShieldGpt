@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<div class="container">
+
+    <h1>CyberShieldGPT Dashboard</h1>
+
+    <p>
+        Intelligent Security Log Analysis
+        using Agentic AI
+    </p>
+
+
+    <div class="dashboard-grid">
+
+        <div class="card">
+
+            <h3>Total Security Logs</h3>
+
+            <h1>{{ log_count }}</h1>
+
+        </div>
+
+
+        <div class="card">
+
+            <h3>Total Incidents</h3>
+
+            <h1>{{ incident_count }}</h1>
+
+        </div>
+
+
+        <div class="card">
+
+            <h3>AI Analyses</h3>
+
+            <h1>{{ analysis_count }}</h1>
+
+        </div>
+
+
+        <div class="card">
+
+            <h3>High/Critical Incidents</h3>
+
+            <h1>
+                {{ severity_counts.get("HIGH", 0) +
+                   severity_counts.get("CRITICAL", 0) }}
+            </h1>
+
+        </div>
+
+    </div>
+
+
+    <div class="card">
+
+        <h2>Upload New Security Dataset</h2>
+
+        <p>
+            Upload a CSV file and run the complete
+            CyberShieldGPT threat analysis workflow.
+        </p>
+
+        <a href="{{ url_for('dataset_analysis') }}">
+
+            Open Dataset Analysis
+
+        </a>
+
+    </div>
+
+
+    <div class="card">
+
+        <h2>Recent Incidents</h2>
+
+        {% for row in incidents %}
+
+            <p>
+
+                Incident {{ row.get("id") }}
+
+                |
+
+                {{ row.get("ip_address") }}
+
+                |
+
+                {{ row.get("severity") }}
+
+                |
+
+                <a href="{{ url_for(
+                    'incident_detail',
+                    incident_id=row.get('id')
+                ) }}">
+                    View Details
+                </a>
+
+            </p>
+
+        {% else %}
+
+            <p>No incidents found.</p>
+
+        {% endfor %}
+
+    </div>
+
+</div>
+
+{% endblock %}

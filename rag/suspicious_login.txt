@@ -1,0 +1,22 @@
+TITLE: Suspicious Login Activity
+
+CATEGORY: Authentication Security
+
+DESCRIPTION:
+Suspicious login activity refers to authentication behavior that differs from expected patterns or requires additional investigation.
+
+COMMON LOG PATTERNS:
+- Login attempts during unusual hours
+- Repeated failed authentication
+- Login activity from unfamiliar addresses
+- Multiple accounts accessed from the same source
+- Sudden increase in authentication activity
+
+INVESTIGATION:
+Compare the activity with known user behavior, expected working hours, historical authentication records, and approved access patterns.
+
+POSSIBLE EXPLANATIONS:
+Unusual login activity can have legitimate explanations such as maintenance, remote work, automated systems, or administrative activity. It can also indicate unauthorized access attempts.
+
+RECOMMENDED ACTION:
+Review the account, source address, timestamp, authentication result, and surrounding events before determining the nature of the incident.

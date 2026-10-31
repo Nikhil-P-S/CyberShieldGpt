@@ -1,0 +1,285 @@
+
+{% extends "base.html" %}
+
+{% block title %}Security Logs | CyberShieldGPT{% endblock %}
+
+{% block content %}
+
+<style>
+.logs-page {
+    max-width: 1400px;
+    margin: 0 auto;
+}
+
+.logs-heading {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.logs-heading h1 {
+    margin: 0 0 8px;
+}
+
+.logs-subtitle {
+    color: var(--muted, #9aa9bf);
+    line-height: 1.6;
+}
+
+.logs-badge {
+    border: 1px solid var(--border, #2a3950);
+    border-radius: 20px;
+    padding: 8px 12px;
+    font-size: 12px;
+    white-space: nowrap;
+}
+
+.logs-panel {
+    background: var(--panel, #101a2b);
+    border: 1px solid var(--border, #2a3950);
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.logs-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    padding: 16px;
+    border-bottom: 1px solid var(--border, #2a3950);
+}
+
+.logs-search {
+    width: 100%;
+    max-width: 380px;
+    padding: 11px 13px;
+    border-radius: 8px;
+    border: 1px solid var(--border, #2a3950);
+    background: var(--panel-light, #18263b);
+    color: var(--text, #edf3ff);
+}
+
+.logs-count {
+    color: var(--muted, #9aa9bf);
+    font-size: 13px;
+    white-space: nowrap;
+}
+
+.logs-table-wrap {
+    width: 100%;
+    overflow-x: auto;
+}
+
+.logs-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+.logs-table th {
+    background: var(--panel-light, #18263b);
+    color: var(--muted, #9aa9bf);
+    text-align: left;
+    padding: 13px 15px;
+    white-space: nowrap;
+}
+
+.logs-table td {
+    padding: 13px 15px;
+    border-top: 1px solid var(--border, #2a3950);
+    overflow-wrap: anywhere;
+    min-width: 100px;
+}
+
+.logs-table tr:hover td {
+    background: rgba(96, 165, 250, 0.05);
+}
+
+.logs-error {
+    margin-bottom: 20px;
+    padding: 16px;
+    border: 1px solid #dc6464;
+    border-radius: 10px;
+    background: rgba(220, 100, 100, 0.08);
+    overflow-wrap: anywhere;
+}
+
+.logs-empty {
+    padding: 45px 20px;
+    text-align: center;
+    color: var(--muted, #9aa9bf);
+}
+
+.logs-empty h2 {
+    color: var(--text, #edf3ff);
+}
+
+@media (max-width: 650px) {
+    .logs-heading,
+    .logs-toolbar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .logs-search {
+        max-width: none;
+        box-sizing: border-box;
+    }
+}
+</style>
+
+<section class="logs-page">
+
+    <div class="logs-heading">
+        <div>
+            <p class="eyebrow">
+                CYBERSHIELD GPT / SECURITY MONITORING
+            </p>
+
+            <h1>Security Logs</h1>
+
+            <p class="logs-subtitle">
+                Review security events loaded into the
+                CyberShieldGPT SQLite database.
+            </p>
+        </div>
+
+        <span class="logs-badge">
+            LOG MONITOR
+        </span>
+    </div>
+
+    {% if error %}
+        <div class="logs-error">
+            <strong>Unable to load security logs</strong>
+            <p>{{ error }}</p>
+        </div>
+    {% endif %}
+
+    <section class="logs-panel">
+
+        {% if rows %}
+
+            <div class="logs-toolbar">
+                <input
+                    id="logSearch"
+                    class="logs-search"
+                    type="search"
+                    placeholder="Search visible logs..."
+                    aria-label="Search visible security logs"
+                >
+
+                <span class="logs-count">
+                    Showing {{ rows|length }} records
+                    (maximum 200)
+                </span>
+            </div>
+
+            <div class="logs-table-wrap">
+                <table class="logs-table" id="logsTable">
+
+                    <thead>
+                        <tr>
+                            {% for column in columns %}
+                                <th>{{ column }}</th>
+                            {% endfor %}
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        {% for row in rows %}
+                            <tr>
+                                {% for column in columns %}
+                                    <td>
+                                        {% if row[column] is none %}
+                                            —
+                                        {% else %}
+                                            {{ row[column] }}
+                                        {% endif %}
+                                    </td>
+                                {% endfor %}
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+
+                </table>
+            </div>
+
+            <div
+                id="noSearchResults"
+                class="logs-empty"
+                hidden
+            >
+                <h2>No matching logs</h2>
+                <p>Try a different search term.</p>
+            </div>
+
+        {% elif not error %}
+
+            <div class="logs-empty">
+                <h2>No security logs found</h2>
+
+                <p>
+                    The database exists, but the logs table
+                    currently contains no records.
+                </p>
+
+                <p>
+                    Run the existing security analysis pipeline
+                    if you have not populated the database yet.
+                </p>
+            </div>
+
+        {% else %}
+
+            <div class="logs-empty">
+                <h2>Logs are unavailable</h2>
+                <p>Resolve the database error above and reload this page.</p>
+            </div>
+
+        {% endif %}
+
+    </section>
+
+</section>
+
+<script>
+(function () {
+    const searchInput = document.getElementById("logSearch");
+    const table = document.getElementById("logsTable");
+    const noResults = document.getElementById("noSearchResults");
+
+    if (!searchInput || !table) {
+        return;
+    }
+
+    searchInput.addEventListener("input", function () {
+        const query = this.value.toLowerCase().trim();
+        const rows = table.querySelectorAll("tbody tr");
+        let visibleCount = 0;
+
+        rows.forEach(function (row) {
+            const matches = row.textContent
+                .toLowerCase()
+                .includes(query);
+
+            row.hidden = !matches;
+
+            if (matches) {
+                visibleCount++;
+            }
+        });
+
+        if (noResults) {
+            noResults.hidden = visibleCount !== 0;
+        }
+
+        table.hidden = visibleCount === 0;
+    });
+})();
+</script>
+
+{% endblock %}

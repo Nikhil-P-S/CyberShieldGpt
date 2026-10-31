@@ -1,0 +1,99 @@
+# ==========================================
+# CYBERSHIELDGPT - GIT IGNORE
+# ==========================================
+
+# Environment variables and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+secrets.json
+credentials.json
+service-account.json
+
+# Python virtual environments
+venv/
+cybervenv/
+.venv/
+env/
+ENV/
+
+#folder
+src1/
+
+# Python cache
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+
+# IDE settings
+.vscode/
+.idea/
+
+# Local databases
+*.db
+*.sqlite
+*.sqlite3
+
+# Uploaded and generated datasets
+uploads/
+data/uploads/
+data/raw/
+data/processed/
+datasets/
+dataset/
+
+# Generated logs
+logs/
+*.log
+
+# Machine learning models and caches
+.cache/
+cache/
+models/
+model_cache/
+*.pkl
+*.pickle
+*.joblib
+*.h5
+*.hdf5
+*.pt
+*.pth
+*.onnx
+*.safetensors
+
+# Vector databases and indexes
+chroma_db/
+chroma/
+vector_db/
+faiss_index/
+index_store/
+
+# Generated reports and exports
+reports/
+generated_reports/
+exports/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.bak
+
+# Archives
+*.zip
+*.rar
+*.7z
+*.tar
+*.gz
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini

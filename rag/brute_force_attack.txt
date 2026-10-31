@@ -1,0 +1,28 @@
+TITLE: Brute Force Authentication Attack
+
+CATEGORY: Authentication Security
+
+DESCRIPTION:
+A brute force authentication attack occurs when repeated login attempts are made against an account in an attempt to discover valid credentials.
+
+COMMON LOG PATTERNS:
+Repeated failed login attempts can indicate automated or manual credential testing. A large number of failures against the same account within a short period should receive additional investigation.
+
+INDICATORS:
+- Multiple failed login attempts
+- Repeated attempts against the same username
+- High login frequency
+- Repeated activity from the same IP address
+- Login attempts occurring within a short time window
+
+POSSIBLE IMPACT:
+A successful attack could result in unauthorized access to the affected account.
+
+RECOMMENDED INVESTIGATION:
+Review authentication logs, verify whether the account owner initiated the activity, inspect the source IP address, and check whether a successful login occurred after multiple failures.
+
+DEFENSIVE GUIDANCE:
+Organizations may consider account lockout policies, multi-factor authentication, rate limiting, monitoring, and appropriate IP restrictions according to their security policies.
+
+NOTE:
+Detection of these patterns does not by itself prove that an attack occurred. Further investigation is required.

@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+
+{% block title %}AI Recommendations | CyberShieldGPT{% endblock %}
+
+{% block content %}
+<section class="page-header">
+    <div>
+        <p class="eyebrow">CYBERSHIELD GPT / AI SECURITY INTELLIGENCE</p>
+        <h1>AI Recommended Actions</h1>
+        <p class="muted">
+            Defensive actions saved by the incident-analysis pipeline.
+            Recommendations should be checked against the original logs and
+            your organization's security policies before implementation.
+        </p>
+    </div>
+    <span class="tag">RAG + AI</span>
+</section>
+
+{% if page_error %}
+    <section class="panel">
+        <h2>Recommendations are not available yet</h2>
+        <p>{{ page_error }}</p>
+    </section>
+{% endif %}
+
+{% if recommendations %}
+    <section class="recommendations-list">
+        {% for item in recommendations %}
+            <article class="panel recommendation-card">
+                <div class="recommendation-header">
+                    <div>
+                        <p class="eyebrow">{{ item.threat_type }}</p>
+                        <h2>{{ item.ip_address }}</h2>
+                        <p class="muted">
+                            Incident ID: {{ item.incident_id or "Not linked" }}
+                            {% if item.analysis_id and item.analysis_id != "—" %}
+                                · Analysis ID: {{ item.analysis_id }}
+                            {% endif %}
+                        </p>
+                    </div>
+                    <span class="severity-pill {{ item.severity|lower }}">
+                        {{ item.severity }}
+                    </span>
+                </div>
+
+                {% if item.explanation %}
+                    <h3>Analysis</h3>
+                    <p class="preserve-whitespace">{{ item.explanation }}</p>
+                {% endif %}
+
+                {% if item.historical_context %}
+                    <h3>Retrieved / Historical Context</h3>
+                    <p class="preserve-whitespace">{{ item.historical_context }}</p>
+                {% endif %}
+
+                <h3>Recommended Actions</h3>
+                <div class="recommendation-body preserve-whitespace">{{ item.recommendation }}</div>
+
+                {% if item.incident_id %}
+                    <p class="recommendation-footer">
+                        <a href="{{ url_for('incident_detail', incident_id=item.incident_id) }}">
+                            View incident details
+                        </a>
+                    </p>
+                {% endif %}
+
+                <p class="disclaimer">
+                    Human review required: validate the recommendation before
+                    blocking an IP, disabling an account, or changing access rules.
+                </p>
+            </article>
+        {% endfor %}
+    </section>
+{% else %}
+    <section class="panel empty-state">
+        <h2>No saved recommendations found</h2>
+        <p>
+            Run the existing pipeline and confirm that the recommendation node
+            uses retrieved RAG context and saves its output in
+            <code>analysis_results.recommendation</code>.
+        </p>
+        <p>
+            If the pipeline ran but this page is still empty, inspect
+            <code>src/agents.py</code> and <code>src/database.py</code> to verify
+            the actual recommendation column and incident foreign key.
+        </p>
+        <a class="button" href="{{ url_for('dashboard') }}">Back to dashboard</a>
+    </section>
+{% endif %}
+{% endblock %}

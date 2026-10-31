@@ -1,0 +1,62 @@
+
+{% extends "base.html" %}
+
+{% block title %}Incidents | CyberShieldGPT{% endblock %}
+{% block page_heading %}Detected Incidents{% endblock %}
+
+{% block content %}
+<section class="panel">
+    <div class="section-heading">
+        <div>
+            <h2>Incident register</h2>
+            <p>Rule-based and machine-learning findings stored by the pipeline.</p>
+        </div>
+        <span class="tag">{{ rows|length }} displayed</span>
+    </div>
+
+    {% if rows %}
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    {% for column in columns %}
+                    <th>{{ column }}</th>
+                    {% endfor %}
+                    <th>Inspect</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in rows %}
+                <tr>
+                    {% for column in columns %}
+                    <td>
+                        {% if column|lower == 'severity' %}
+                            <span class="severity-pill {{ (row.get(column) or 'unknown')|lower }}">
+                                {{ row.get(column) or 'Unknown' }}
+                            </span>
+                        {% else %}
+                            {{ row.get(column) if row.get(column) is not none else '—' }}
+                        {% endif %}
+                    </td>
+                    {% endfor %}
+                    <td>
+                        {% if primary_key and row.get(primary_key) is not none %}
+                        <a href="{{ url_for('incident_detail', incident_id=row.get(primary_key)) }}">
+                            Inspect →
+                        </a>
+                        {% else %}
+                        —
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p class="empty-state">
+        No incidents found. Run the security pipeline first.
+    </p>
+    {% endif %}
+</section>
+{% endblock %}

@@ -1,0 +1,25 @@
+TITLE: Security Monitoring Best Practices
+
+CATEGORY: Cybersecurity
+
+DESCRIPTION:
+Security monitoring involves continuously reviewing system activity to identify events that require investigation.
+
+IMPORTANT PRACTICES:
+
+1. Maintain authentication logs.
+2. Monitor repeated failed logins.
+3. Monitor access-denied events.
+4. Review unusual authentication times.
+5. Monitor administrative activity.
+6. Track suspicious source addresses.
+7. Maintain historical incident records.
+8. Use multi-factor authentication where appropriate.
+9. Apply least-privilege access.
+10. Regularly review security alerts.
+
+INCIDENT INVESTIGATION:
+Security alerts should be investigated using available evidence. A single unusual event should not automatically be treated as a confirmed attack.
+
+REPORTING:
+Security reports should identify the observed activity, evidence, possible threat category, severity, related historical information, and recommended investigation or defensive actions.

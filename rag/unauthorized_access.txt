@@ -1,0 +1,21 @@
+TITLE: Unauthorized Access
+
+CATEGORY: Access Control
+
+DESCRIPTION:
+Unauthorized access occurs when a user or system attempts to access a resource without the required authorization.
+
+COMMON LOG PATTERNS:
+- Repeated access denied events
+- Access attempts against administrative resources
+- Access to resources outside the user's normal role
+- Multiple denied requests within a short period
+
+INDICATORS:
+Repeated access denial from the same user or source address can indicate that the account is attempting to reach restricted resources.
+
+INVESTIGATION:
+Review the affected account, requested resource, source address, timestamp, and successful or unsuccessful events surrounding the activity.
+
+DEFENSIVE GUIDANCE:
+Organizations should maintain appropriate access controls, least-privilege permissions, authentication controls, monitoring, and audit logging.

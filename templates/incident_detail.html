@@ -1,0 +1,72 @@
+
+{% extends "base.html" %}
+
+{% block title %}Incident Details | CyberShieldGPT{% endblock %}
+{% block page_heading %}Incident Investigation{% endblock %}
+
+{% block content %}
+<p class="back-link">
+    <a href="{{ url_for('incidents_page') }}">← Back to incidents</a>
+</p>
+
+<section class="panel">
+    <div class="section-heading">
+        <div>
+            <span class="eyebrow">INCIDENT RECORD</span>
+            <h2>
+                {{ incident.get('ip_address', 'Incident') }}
+            </h2>
+        </div>
+        <span class="severity-pill
+            {{ (incident.get('severity') or 'unknown')|lower }}">
+            {{ incident.get('severity', 'Unknown') }}
+        </span>
+    </div>
+
+    <div class="detail-grid">
+        {% for key, value in incident.items() %}
+        <article class="detail-item">
+            <span>{{ key|replace('_', ' ')|title }}</span>
+            <p>{{ value if value is not none else '—' }}</p>
+        </article>
+        {% endfor %}
+    </div>
+</section>
+
+<section class="panel">
+    <div class="section-heading">
+        <div>
+            <h2>Saved AI analysis</h2>
+            <p>Analysis records linked to this incident in SQLite.</p>
+        </div>
+    </div>
+
+    {% if analyses %}
+        {% for analysis in analyses %}
+        <article class="analysis-card">
+            {% for key, value in analysis.items() %}
+            {% if key|lower not in ['id', 'incident_id', 'incidentid'] %}
+            <div class="analysis-field">
+                <h3>{{ key|replace('_', ' ')|title }}</h3>
+                <p class="preserve-whitespace">
+                    {{ value if value is not none else '—' }}
+                </p>
+            </div>
+            {% endif %}
+            {% endfor %}
+        </article>
+        {% endfor %}
+    {% else %}
+    <p class="empty-state">
+        No saved AI analysis was found for this incident.
+        Check that the pipeline's save-analysis node completed successfully.
+    </p>
+    {% endif %}
+</section>
+
+<p class="disclaimer">
+    AI-generated classifications and recommendations are investigative aids,
+    not proof of an attack. Verify findings against original logs and your
+    organization's incident-response procedures.
+</p>
+{% endblock %}

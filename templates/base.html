@@ -1,0 +1,66 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}CyberShieldGPT{% endblock %}</title>
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <aside class="sidebar">
+        <div class="brand">
+            <span class="brand-icon">CS</span>
+            <div>
+                <h2>CyberShieldGPT</h2>
+                <small>Intelligent Security Analysis</small>
+            </div>
+        </div>
+
+        <nav>
+
+<a href="{{ url_for('dataset_analysis') }}">
+    Dataset Analysis
+</a>
+            
+<a href="{{ url_for('dashboard') }}">Dashboard</a>
+
+<a href="{{ url_for('logs_page') }}">Security Logs</a>
+
+<a href="{{ url_for('incidents_page') }}">Incidents</a>
+
+<a href="{{ url_for('chat_page') }}">Security Chat</a>
+
+        </nav>
+
+        <div class="sidebar-footer">
+            Defensive security monitoring
+        </div>
+    </aside>
+
+    <main class="main-content">
+        <header class="topbar">
+            <div>
+                <span class="eyebrow">SECURITY OPERATIONS</span>
+                <h1>{% block page_heading %}Overview{% endblock %}</h1>
+            </div>
+            <span class="status"><span class="status-dot"></span> Local dashboard</span>
+        </header>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="notice {{ category }}">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        {% block content %}{% endblock %}
+
+        <footer class="footer">
+            CyberShieldGPT · AI-generated findings require human verification.
+        </footer>
+    </main>
+</body>
+</html>

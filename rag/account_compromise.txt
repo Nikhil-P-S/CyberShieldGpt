@@ -1,0 +1,22 @@
+TITLE: Account Compromise
+
+CATEGORY: Account Security
+
+DESCRIPTION:
+An account compromise occurs when an unauthorized person obtains or uses valid account credentials.
+
+POSSIBLE INDICATORS:
+- Unusual authentication activity
+- Multiple failed attempts followed by successful login
+- Unexpected access to sensitive resources
+- Login activity inconsistent with normal behavior
+- Unexpected changes to account settings
+
+INVESTIGATION:
+Review authentication history, source addresses, access activity, account changes, and other related events.
+
+RECOMMENDED RESPONSE:
+Verify the account owner's activity, investigate suspicious sessions, review credentials, and apply the organization's incident response procedures where appropriate.
+
+NOTE:
+An unusual login pattern alone does not prove that an account has been compromised.

@@ -1,0 +1,19 @@
+TITLE: Privilege Escalation
+
+CATEGORY: Access Control
+
+DESCRIPTION:
+Privilege escalation involves obtaining permissions beyond those normally assigned to an account.
+
+POSSIBLE LOG PATTERNS:
+- Attempts to access administrative resources
+- Permission changes
+- Unexpected administrative activity
+- Access to restricted resources
+- Changes to account privileges
+
+INVESTIGATION:
+Review account permissions, administrative actions, access logs, and the sequence of events before and after the suspicious activity.
+
+DEFENSIVE GUIDANCE:
+Use least-privilege access, monitor administrative activity, maintain audit logs, and review permission changes.
