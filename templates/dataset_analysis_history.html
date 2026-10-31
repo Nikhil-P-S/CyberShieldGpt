@@ -1,0 +1,550 @@
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0">
+
+    <title>Dataset Analysis History | CyberShieldGPT</title>
+
+    <style>
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+            background: #0b1120;
+            color: #e5e7eb;
+        }
+
+        .container {
+            max-width: 1250px;
+            margin: auto;
+            padding: 30px 20px;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        h1 {
+            margin: 0;
+            color: #ffffff;
+        }
+
+        .subtitle {
+            color: #94a3b8;
+            margin-top: 8px;
+        }
+
+        .button {
+            display: inline-block;
+            padding: 11px 16px;
+            border-radius: 7px;
+            text-decoration: none;
+            border: none;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: bold;
+        }
+
+        .primary {
+            background: #2563eb;
+            color: white;
+        }
+
+        .secondary {
+            background: #334155;
+            color: white;
+        }
+
+        .download {
+            background: #047857;
+            color: white;
+        }
+
+        .delete {
+            background: #991b1b;
+            color: white;
+        }
+
+        .button:hover {
+            opacity: 0.85;
+        }
+
+        .messages {
+            margin-bottom: 20px;
+        }
+
+        .message {
+            padding: 12px 15px;
+            margin-bottom: 10px;
+            border-radius: 7px;
+        }
+
+        .success {
+            background: #064e3b;
+            color: #a7f3d0;
+        }
+
+        .error {
+            background: #7f1d1d;
+            color: #fecaca;
+        }
+
+        .history-card {
+            background: #111c30;
+            border: 1px solid #25344c;
+            border-radius: 12px;
+            padding: 22px;
+            margin-bottom: 18px;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .filename {
+            font-size: 18px;
+            font-weight: bold;
+            color: #ffffff;
+            word-break: break-word;
+        }
+
+        .date {
+            color: #94a3b8;
+            font-size: 13px;
+            margin-top: 8px;
+        }
+
+        .status {
+            display: inline-block;
+            padding: 6px 10px;
+            background: #064e3b;
+            color: #a7f3d0;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 12px;
+            margin-top: 22px;
+            margin-bottom: 22px;
+        }
+
+        .stat {
+            background: #1e293b;
+            border-radius: 8px;
+            padding: 14px;
+        }
+
+        .stat-label {
+            color: #94a3b8;
+            font-size: 11px;
+            margin-bottom: 9px;
+        }
+
+        .stat-value {
+            font-size: 23px;
+            font-weight: bold;
+            color: #ffffff;
+        }
+
+        .actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .actions form {
+            margin: 0;
+        }
+
+        .empty {
+            text-align: center;
+            background: #111c30;
+            padding: 65px 20px;
+            border-radius: 12px;
+            border: 1px dashed #475569;
+        }
+
+        .empty h2 {
+            color: white;
+        }
+
+        .empty p {
+            color: #94a3b8;
+        }
+
+        .footer {
+            color: #64748b;
+            text-align: center;
+            font-size: 12px;
+            margin-top: 35px;
+        }
+
+        @media(max-width: 1000px) {
+
+            .stats {
+                grid-template-columns: repeat(3, 1fr);
+            }
+
+        }
+
+        @media(max-width: 600px) {
+
+            .stats {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .header {
+                align-items: flex-start;
+            }
+
+        }
+
+    </style>
+
+</head>
+
+
+<body>
+
+<div class="container">
+
+
+    <!-- ========================================= -->
+    <!-- HEADER -->
+    <!-- ========================================= -->
+
+    <div class="header">
+
+        <div>
+
+            <h1>Dataset Analysis History</h1>
+
+            <p class="subtitle">
+                View, download and manage previous
+                CyberShieldGPT dataset analyses.
+            </p>
+
+        </div>
+
+
+        <div class="actions">
+
+            <a href="{{ url_for('dataset_analysis') }}"
+               class="button primary">
+
+                + Analyze New Dataset
+
+            </a>
+
+            <a href="{{ url_for('dashboard') }}"
+               class="button secondary">
+
+                Dashboard
+
+            </a>
+
+        </div>
+
+    </div>
+
+
+    <!-- ========================================= -->
+    <!-- FLASH MESSAGES -->
+    <!-- ========================================= -->
+
+    <div class="messages">
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+
+            {% for category, message in messages %}
+
+                <div class="message
+                    {% if category == 'success' %}
+                        success
+                    {% else %}
+                        error
+                    {% endif %}
+                ">
+
+                    {{ message }}
+
+                </div>
+
+            {% endfor %}
+
+        {% endwith %}
+
+    </div>
+
+
+    <!-- ========================================= -->
+    <!-- HISTORY COUNT -->
+    <!-- ========================================= -->
+
+    <h3>
+        Previous Analysis Records: {{ history|length }}
+    </h3>
+
+
+    <!-- ========================================= -->
+    <!-- HISTORY CARDS -->
+    <!-- ========================================= -->
+
+    {% if history %}
+
+        {% for item in history %}
+
+            <div class="history-card">
+
+
+                <!-- CARD HEADER -->
+
+                <div class="card-header">
+
+                    <div>
+
+                        <div class="filename">
+
+                            {{ item.dataset_filename }}
+
+                        </div>
+
+                        <div class="date">
+
+                            Analysis date: {{ item.created_at }}
+
+                        </div>
+
+                        <div class="date">
+
+                            Analysis ID: {{ item.id }}
+
+                        </div>
+
+                    </div>
+
+
+                    <div>
+
+                        <span class="status">
+
+                            {{ item.status or 'Completed' }}
+
+                        </span>
+
+                    </div>
+
+                </div>
+
+
+                <!-- ================================= -->
+                <!-- SUMMARY STATISTICS -->
+                <!-- ================================= -->
+
+                <div class="stats">
+
+
+                    <div class="stat">
+
+                        <div class="stat-label">
+                            TOTAL LOGS
+                        </div>
+
+                        <div class="stat-value">
+                            {{ item.total_logs }}
+                        </div>
+
+                    </div>
+
+
+                    <div class="stat">
+
+                        <div class="stat-label">
+                            RULE FINDINGS
+                        </div>
+
+                        <div class="stat-value">
+                            {{ item.rule_count }}
+                        </div>
+
+                    </div>
+
+
+                    <div class="stat">
+
+                        <div class="stat-label">
+                            ML ANOMALIES
+                        </div>
+
+                        <div class="stat-value">
+                            {{ item.ml_count }}
+                        </div>
+
+                    </div>
+
+
+                    <div class="stat">
+
+                        <div class="stat-label">
+                            INCIDENTS
+                        </div>
+
+                        <div class="stat-value">
+                            {{ item.incident_count }}
+                        </div>
+
+                    </div>
+
+
+                    <div class="stat">
+
+                        <div class="stat-label">
+                            SAVED INCIDENTS
+                        </div>
+
+                        <div class="stat-value">
+                            {{ item.saved_incident_count }}
+                        </div>
+
+                    </div>
+
+
+                    <div class="stat">
+
+                        <div class="stat-label">
+                            AI ANALYSES
+                        </div>
+
+                        <div class="stat-value">
+                            {{ item.saved_analysis_count }}
+                        </div>
+
+                    </div>
+
+
+                </div>
+
+
+                <!-- ================================= -->
+                <!-- ACTIONS -->
+                <!-- ================================= -->
+
+                <div class="actions">
+
+
+                    <!-- DOWNLOAD REPORT -->
+
+                    <a
+                        href="{{ url_for(
+                            'download_dataset_history',
+                            run_id=item.id
+                        ) }}"
+                        class="button download"
+                    >
+
+                        Download DOCX Report
+
+                    </a>
+
+
+                    <!-- DELETE HISTORY -->
+
+                    <form
+                        method="POST"
+                        action="{{ url_for(
+                            'delete_dataset_history',
+                            run_id=item.id
+                        ) }}"
+                        onsubmit="return confirm(
+                            'Delete this saved dataset analysis history record?'
+                        );"
+                    >
+
+                        <button
+                            type="submit"
+                            class="button delete"
+                        >
+
+                            Delete History
+
+                        </button>
+
+                    </form>
+
+
+                </div>
+
+
+            </div>
+
+        {% endfor %}
+
+
+    {% else %}
+
+
+        <!-- ================================= -->
+        <!-- EMPTY HISTORY -->
+        <!-- ================================= -->
+
+        <div class="empty">
+
+            <h2>No Dataset History Found</h2>
+
+            <p>
+                Your completed CSV analysis reports
+                will appear here.
+            </p>
+
+            <a href="{{ url_for('dataset_analysis') }}"
+               class="button primary">
+
+                Analyze Your First Dataset
+
+            </a>
+
+        </div>
+
+
+    {% endif %}
+
+
+    <div class="footer">
+
+        CyberShieldGPT |
+        Intelligent Security Log Analysis using Agentic AI
+
+    </div>
+
+
+</div>
+
+</body>
+
+</html>

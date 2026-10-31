@@ -5,7 +5,13 @@ import subprocess
 import sys
 from pathlib import Path
 import uuid
+import json
+from datetime import datetime, timezone
+from io import BytesIO
 
+from flask import abort
+
+from flask import send_file
 from werkzeug.utils import secure_filename
 from flask import (
     Flask,
@@ -148,6 +154,213 @@ def count_rows(connection, table):
         f"SELECT COUNT(*) FROM {quote_identifier(table)}"
     ).fetchone()[0]
 
+
+# ============================================================
+# DATASET ANALYSIS HISTORY
+# ============================================================
+
+def get_write_connection():
+
+    """
+    Open a writable SQLite connection.
+
+    Existing get_connection() is read-only.
+    This connection is used only for history management.
+    """
+
+    if not DB_PATH.exists():
+
+        raise FileNotFoundError(
+            f"Database not found: {DB_PATH}"
+        )
+
+    connection = sqlite3.connect(
+        str(DB_PATH),
+        timeout=20
+    )
+
+    connection.row_factory = sqlite3.Row
+
+    return connection
+
+
+# ============================================================
+# CREATE HISTORY TABLE
+# ============================================================
+
+def initialize_dataset_history():
+
+    connection = get_write_connection()
+
+    try:
+
+        connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS dataset_analysis_runs
+            (
+                id TEXT PRIMARY KEY,
+
+                dataset_filename TEXT NOT NULL,
+
+                created_at TEXT NOT NULL,
+
+                status TEXT,
+
+                total_logs INTEGER DEFAULT 0,
+
+                rule_count INTEGER DEFAULT 0,
+
+                ml_count INTEGER DEFAULT 0,
+
+                incident_count INTEGER DEFAULT 0,
+
+                saved_incident_count INTEGER DEFAULT 0,
+
+                saved_analysis_count INTEGER DEFAULT 0,
+
+                results_json TEXT NOT NULL
+            )
+            """
+        )
+
+        connection.execute(
+            """
+            CREATE INDEX IF NOT EXISTS
+            idx_dataset_runs_created_at
+            ON dataset_analysis_runs(created_at)
+            """
+        )
+
+        connection.commit()
+
+        print(
+            "[HISTORY] Dataset history table initialized."
+        )
+
+    finally:
+
+        connection.close()
+
+
+# ============================================================
+# SAVE ONE COMPLETED DATASET ANALYSIS
+# ============================================================
+
+def save_dataset_history(dataset_filename, results):
+
+    initialize_dataset_history()
+
+    run_id = uuid.uuid4().hex
+
+    created_at = datetime.now(
+        timezone.utc
+    ).isoformat(timespec="seconds")
+
+    results_json = json.dumps(
+        results,
+        ensure_ascii=False,
+        default=str
+    )
+
+    connection = get_write_connection()
+
+    try:
+
+        connection.execute(
+            """
+            INSERT INTO dataset_analysis_runs
+            (
+                id,
+                dataset_filename,
+                created_at,
+                status,
+                total_logs,
+                rule_count,
+                ml_count,
+                incident_count,
+                saved_incident_count,
+                saved_analysis_count,
+                results_json
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                run_id,
+                dataset_filename,
+                created_at,
+                str(results.get("status", "completed")),
+                int(results.get("total_logs", 0)),
+                int(results.get("rule_count", 0)),
+                int(results.get("ml_count", 0)),
+                int(results.get("incident_count", 0)),
+                int(results.get("saved_incident_count", 0)),
+                int(results.get("saved_analysis_count", 0)),
+                results_json
+            )
+        )
+
+        connection.commit()
+
+        print(
+            "[HISTORY] Dataset analysis saved:",
+            run_id
+        )
+
+        return run_id
+
+    finally:
+
+        connection.close()
+
+
+# ============================================================
+# GET ONE DATASET HISTORY RECORD
+# ============================================================
+
+def get_dataset_history_record(run_id):
+
+    initialize_dataset_history()
+
+    connection = get_connection()
+
+    try:
+
+        row = connection.execute(
+            """
+            SELECT *
+            FROM dataset_analysis_runs
+            WHERE id = ?
+            LIMIT 1
+            """,
+            (run_id,)
+        ).fetchone()
+
+        return dict(row) if row else None
+
+    finally:
+
+        connection.close()
+
+
+# ============================================================
+# FORMAT JSON DATA SAFELY
+# ============================================================
+
+def parse_history_json(value):
+
+    if not value:
+        return []
+
+    if isinstance(value, (list, dict)):
+        return value
+
+    try:
+
+        return json.loads(value)
+
+    except (json.JSONDecodeError, TypeError):
+
+        return value
 
 def find_value(record, *names, default="—"):
     """Get a value by column name without case sensitivity."""
@@ -1073,34 +1286,51 @@ def dataset_analysis():
 
         results = {
 
-            "status": state.get(
-                "status",
-                "completed"
-            ),
+    "status": state.get(
+        "status",
+        "completed"
+    ),
 
-            "total_logs": total_logs,
+    "total_logs": total_logs,
 
-            "rule_count": len(
-                rule_results
-            ),
+    "rule_count": len(
+        rule_results
+    ),
 
-            "ml_count": ml_count,
+    "ml_count": ml_count,
 
-            "incident_count": len(
-                incidents
-            ),
+    "incident_count": len(
+        incidents
+    ),
 
-            "saved_incident_count": len(
-                incident_ids
-            ),
+    "saved_incident_count": len(
+        incident_ids
+    ),
 
-            "saved_analysis_count": state.get(
-                "saved_analysis_count",
-                0
-            ),
+    "saved_analysis_count": state.get(
+        "saved_analysis_count",
+        0
+    ),
 
-            "incidents": incident_cards
-        }
+    "incidents": incident_cards
+}
+
+
+        # ========================================================
+        # SAVE COMPLETED ANALYSIS TO HISTORY
+        # ========================================================
+
+        history_id = save_dataset_history(
+            dataset_filename=original_name,
+            results=results
+        )
+
+        results["history_id"] = history_id
+
+        print(
+            "[FLASK] Dataset history saved:",
+            history_id
+        )
 
         # ----------------------------------------------------
         # DISPLAY RESULTS
@@ -1142,6 +1372,514 @@ def dataset_analysis():
             app.logger.warning(
                 "Could not remove temporary upload."
             )
+
+
+
+# ============================================================
+# DATASET ANALYSIS HISTORY PAGE
+# ============================================================
+
+@app.route("/dataset-analysis/history")
+def dataset_analysis_history():
+
+    try:
+
+        initialize_dataset_history()
+
+        with get_connection() as connection:
+
+            rows = connection.execute(
+                """
+                SELECT
+                    id,
+                    dataset_filename,
+                    created_at,
+                    status,
+                    total_logs,
+                    rule_count,
+                    ml_count,
+                    incident_count,
+                    saved_incident_count,
+                    saved_analysis_count
+                FROM dataset_analysis_runs
+                ORDER BY created_at DESC
+                LIMIT 200
+                """
+            ).fetchall()
+
+            history = [
+                dict(row)
+                for row in rows
+            ]
+
+        return render_template(
+            "dataset_analysis_history.html",
+            history=history
+        )
+
+    except Exception as error:
+
+        app.logger.exception(
+            "Unable to load dataset history"
+        )
+
+        flash(
+            f"Unable to load dataset history: {error}",
+            "error"
+        )
+
+        return render_template(
+            "dataset_analysis_history.html",
+            history=[]
+        )
+
+
+# ============================================================
+# DOWNLOAD DATASET ANALYSIS REPORT
+# ============================================================
+
+@app.route(
+    "/dataset-analysis/history/<string:run_id>/download"
+)
+def download_dataset_history(run_id):
+
+    try:
+
+        record = get_dataset_history_record(
+            run_id
+        )
+
+        if record is None:
+
+            abort(404)
+
+        results = json.loads(
+            record["results_json"]
+        )
+
+        # ----------------------------------------------------
+        # CREATE WORD DOCUMENT
+        # ----------------------------------------------------
+
+        from docx import Document
+        from docx.shared import Inches, Pt
+        from docx.enum.text import WD_ALIGN_PARAGRAPH
+
+        document = Document()
+
+        section = document.sections[0]
+
+        section.top_margin = Inches(0.7)
+        section.bottom_margin = Inches(0.7)
+
+        # ----------------------------------------------------
+        # TITLE
+        # ----------------------------------------------------
+
+        title = document.add_heading(
+            "CYBERSHIELDGPT",
+            0
+        )
+
+        title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+
+        subtitle = document.add_paragraph(
+            "Dataset Security Analysis Report"
+        )
+
+        subtitle.alignment = WD_ALIGN_PARAGRAPH.CENTER
+
+        document.add_paragraph(
+            f"Dataset: {record['dataset_filename']}"
+        )
+
+        document.add_paragraph(
+            f"Analysis ID: {record['id']}"
+        )
+
+        document.add_paragraph(
+            f"Analysis Date: {record['created_at']}"
+        )
+
+        document.add_paragraph(
+            f"Status: {record['status']}"
+        )
+
+        document.add_heading(
+            "1. Executive Summary",
+            level=1
+        )
+
+        summary_table = document.add_table(
+            rows=0,
+            cols=2
+        )
+
+        summary_table.style = "Light Shading Accent 1"
+
+        summary_items = [
+            ("Total Logs", record["total_logs"]),
+            ("Rule Findings", record["rule_count"]),
+            ("ML Anomalies", record["ml_count"]),
+            ("Detected Incidents", record["incident_count"]),
+            ("Saved Incidents", record["saved_incident_count"]),
+            ("Saved AI Analyses", record["saved_analysis_count"])
+        ]
+
+        for label, value in summary_items:
+
+            cells = summary_table.add_row().cells
+
+            cells[0].text = str(label)
+            cells[1].text = str(value)
+
+        # ----------------------------------------------------
+        # INCIDENT DETAILS
+        # ----------------------------------------------------
+
+        incidents = results.get(
+            "incidents",
+            []
+        )
+
+        document.add_heading(
+            "2. Incident Analysis",
+            level=1
+        )
+
+        if not incidents:
+
+            document.add_paragraph(
+                "No security incidents were detected in this dataset."
+            )
+
+        for index, incident in enumerate(
+            incidents,
+            start=1
+        ):
+
+            document.add_heading(
+                f"Incident {index}",
+                level=2
+            )
+
+            document.add_paragraph(
+                f"Incident ID: {incident.get('incident_id', 'N/A')}"
+            )
+
+            document.add_paragraph(
+                f"IP Address: {incident.get('ip_address', 'N/A')}"
+            )
+
+            document.add_paragraph(
+                f"Severity: {incident.get('severity', 'N/A')}"
+            )
+
+            document.add_paragraph(
+                f"Security Score: {incident.get('security_score', 'N/A')}"
+            )
+
+            document.add_paragraph(
+                f"ML Anomaly: {incident.get('ml_anomaly', 'N/A')}"
+            )
+
+            document.add_heading(
+                "Triggered Rules",
+                level=3
+            )
+
+            rules = incident.get(
+                "rule_details",
+                []
+            )
+
+            if rules:
+
+                for rule in rules:
+
+                    document.add_paragraph(
+                        str(rule),
+                        style="List Bullet"
+                    )
+
+            else:
+
+                document.add_paragraph(
+                    "No rule details available."
+                )
+
+            document.add_heading(
+                "AI Log Analysis",
+                level=3
+            )
+
+            document.add_paragraph(
+                str(
+                    incident.get(
+                        "log_analysis",
+                        "Not available"
+                    )
+                )
+            )
+
+            document.add_heading(
+                "Threat Classification",
+                level=3
+            )
+
+            document.add_paragraph(
+                str(
+                    incident.get(
+                        "threat_classification",
+                        "Not available"
+                    )
+                )
+            )
+
+            document.add_heading(
+                "RAG Context",
+                level=3
+            )
+
+            document.add_paragraph(
+                str(
+                    incident.get(
+                        "rag_context",
+                        "No RAG context available."
+                    )
+                )
+            )
+
+            sources = incident.get(
+                "sources",
+                []
+            )
+
+            if sources:
+
+                document.add_paragraph(
+                    "Knowledge Sources: "
+                    + ", ".join(
+                        map(str, sources)
+                    )
+                )
+
+            # ------------------------------------------------
+            # RECOMMENDATIONS
+            # ------------------------------------------------
+
+            document.add_heading(
+                "Recommended Actions",
+                level=3
+            )
+
+            recommendations = parse_history_json(
+                incident.get("recommendation", [])
+            )
+
+            if isinstance(recommendations, list):
+
+                for recommendation in recommendations:
+
+                    if isinstance(recommendation, dict):
+
+                        document.add_paragraph(
+                            f"Priority: {recommendation.get('priority', 'N/A')}",
+                            style="List Bullet"
+                        )
+
+                        document.add_paragraph(
+                            f"Action: {recommendation.get('action', '')}"
+                        )
+
+                        document.add_paragraph(
+                            f"Reason: {recommendation.get('reason', '')}"
+                        )
+
+                        document.add_paragraph(
+                            f"Verification: {recommendation.get('verification', '')}"
+                        )
+
+                    else:
+
+                        document.add_paragraph(
+                            str(recommendation),
+                            style="List Bullet"
+                        )
+
+            elif isinstance(recommendations, dict):
+
+                document.add_paragraph(
+                    json.dumps(
+                        recommendations,
+                        ensure_ascii=False,
+                        indent=2
+                    )
+                )
+
+            else:
+
+                document.add_paragraph(
+                    str(recommendations)
+                )
+
+            # ------------------------------------------------
+            # FINAL INCIDENT REPORT
+            # ------------------------------------------------
+
+            document.add_heading(
+                "Final Incident Report",
+                level=3
+            )
+
+            document.add_paragraph(
+                str(
+                    incident.get(
+                        "report",
+                        "Not available"
+                    )
+                )
+            )
+
+            document.add_paragraph(
+                " "
+            )
+
+        # ----------------------------------------------------
+        # DISCLAIMER
+        # ----------------------------------------------------
+
+        document.add_heading(
+            "3. Analysis Limitations",
+            level=1
+        )
+
+        document.add_paragraph(
+            "This report contains automated security analysis. "
+            "ML anomaly detection indicates unusual behavior and "
+            "does not independently prove malicious activity. "
+            "Recommendations require validation by an authorized "
+            "security analyst before operational execution."
+        )
+
+        # ----------------------------------------------------
+        # EXPORT TO MEMORY
+        # ----------------------------------------------------
+
+        output = BytesIO()
+
+        document.save(output)
+
+        output.seek(0)
+
+        safe_filename = secure_filename(
+            record["dataset_filename"]
+        )
+
+        report_filename = (
+            f"CyberShieldGPT_{safe_filename}_report.docx"
+        )
+
+        return send_file(
+            output,
+            as_attachment=True,
+            download_name=report_filename,
+            mimetype=(
+                "application/vnd.openxmlformats-officedocument."
+                "wordprocessingml.document"
+            )
+        )
+
+    except Exception as error:
+
+        app.logger.exception(
+            "Dataset report download failed"
+        )
+
+        flash(
+            f"Unable to generate report: {error}",
+            "error"
+        )
+
+        return redirect(
+            url_for("dataset_analysis_history")
+        )
+
+
+# ============================================================
+# DELETE DATASET HISTORY RECORD
+# ============================================================
+
+@app.route(
+    "/dataset-analysis/history/<string:run_id>/delete",
+    methods=["POST"]
+)
+def delete_dataset_history(run_id):
+
+    try:
+
+        connection = get_write_connection()
+
+        try:
+
+            cursor = connection.execute(
+                """
+                DELETE FROM dataset_analysis_runs
+                WHERE id = ?
+                """,
+                (run_id,)
+            )
+
+            connection.commit()
+
+            deleted = cursor.rowcount
+
+        finally:
+
+            connection.close()
+
+        if deleted:
+
+            flash(
+                "Dataset analysis history deleted successfully.",
+                "success"
+            )
+
+        else:
+
+            flash(
+                "Dataset history record was not found.",
+                "error"
+            )
+
+    except Exception as error:
+
+        app.logger.exception(
+            "Dataset history deletion failed"
+        )
+
+        flash(
+            f"Unable to delete history: {error}",
+            "error"
+        )
+
+    return redirect(
+        url_for("dataset_analysis_history")
+    )
+@app.template_filter("from_json")
+def from_json_filter(value):
+
+    if not value:
+        return []
+
+    if isinstance(value, (list, dict)):
+        return value
+
+    try:
+        return json.loads(value)
+
+    except (ValueError, TypeError):
+        return []
 # ============================================================
 # START FLASK
 # ============================================================

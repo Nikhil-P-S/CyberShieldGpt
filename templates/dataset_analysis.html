@@ -1,8 +1,13 @@
+
 {% extends "base.html" %}
 
 {% block content %}
 
 <style>
+
+/* ============================================================
+   CYBERSHIELDGPT DATASET ANALYSIS
+============================================================ */
 
 .cyber-container {
     max-width: 1250px;
@@ -23,22 +28,77 @@
     color: #94a3b8;
 }
 
+.cyber-heading {
+    color: #ffffff;
+    margin-bottom: 10px;
+}
+
+.cyber-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 15px;
+    margin-bottom: 22px;
+}
+
+.cyber-header-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
 .cyber-upload {
     border: 2px dashed #64748b;
     border-radius: 12px;
     padding: 30px;
     text-align: center;
     margin: 20px 0;
+    background: #111c2e;
+}
+
+.cyber-upload input {
+    max-width: 100%;
 }
 
 .cyber-button {
+    display: inline-block;
     background: #2563eb;
     color: white;
     border: none;
-    padding: 13px 22px;
+    padding: 12px 20px;
     border-radius: 8px;
     cursor: pointer;
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 600;
 }
+
+.cyber-button:hover {
+    opacity: 0.88;
+    color: white;
+}
+
+.cyber-button-secondary {
+    background: #334155;
+}
+
+.cyber-button-download {
+    background: #047857;
+}
+
+.cyber-button-history {
+    background: #7c3aed;
+}
+
+.cyber-button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* ============================================================
+   SUMMARY STATISTICS
+============================================================ */
 
 .cyber-grid {
     display: grid;
@@ -53,11 +113,21 @@
     padding: 18px;
 }
 
+.cyber-stat-label {
+    color: #94a3b8;
+    font-size: 13px;
+}
+
 .cyber-stat strong {
     display: block;
     font-size: 28px;
     margin-top: 8px;
+    color: #ffffff;
 }
+
+/* ============================================================
+   INCIDENT CARDS
+============================================================ */
 
 .cyber-incident {
     background: #111c2e;
@@ -66,6 +136,7 @@
     border-radius: 12px;
     padding: 22px;
     margin-bottom: 22px;
+    overflow-wrap: anywhere;
 }
 
 .HIGH,
@@ -87,10 +158,16 @@
     padding-top: 18px;
 }
 
+.cyber-section h3 {
+    color: #ffffff;
+    margin-bottom: 14px;
+}
+
 .cyber-report {
     white-space: pre-wrap;
     overflow-wrap: anywhere;
     line-height: 1.7;
+    color: #dbeafe;
 }
 
 .cyber-pre {
@@ -99,6 +176,8 @@
     background: #0b1220;
     padding: 14px;
     border-radius: 8px;
+    color: #cbd5e1;
+    overflow-x: auto;
 }
 
 .cyber-tag {
@@ -108,9 +187,95 @@
     border-radius: 20px;
     margin: 4px;
     font-size: 12px;
+    color: #bfdbfe;
 }
 
-@media(max-width: 800px) {
+/* ============================================================
+   RECOMMENDATION CARDS
+============================================================ */
+
+.cyber-recommendation {
+    background: #0f172a;
+    border: 1px solid #334155;
+    border-radius: 9px;
+    padding: 15px;
+    margin-bottom: 12px;
+}
+
+.cyber-recommendation strong {
+    color: #ffffff;
+}
+
+.cyber-priority {
+    display: inline-block;
+    padding: 4px 9px;
+    border-radius: 15px;
+    background: #7f1d1d;
+    color: #fecaca;
+    font-size: 11px;
+    font-weight: bold;
+    margin-bottom: 10px;
+}
+
+.cyber-priority.P2 {
+    background: #78350f;
+    color: #fde68a;
+}
+
+.cyber-priority.P3 {
+    background: #164e63;
+    color: #a5f3fc;
+}
+
+/* ============================================================
+   FLASH MESSAGES
+============================================================ */
+
+.cyber-flash {
+    padding: 13px 16px;
+    border-radius: 8px;
+    margin-bottom: 12px;
+    border: 1px solid #334155;
+}
+
+.cyber-flash.success {
+    background: #064e3b;
+    color: #a7f3d0;
+}
+
+.cyber-flash.error,
+.cyber-flash.danger {
+    background: #7f1d1d;
+    color: #fecaca;
+}
+
+.cyber-flash.warning {
+    background: #78350f;
+    color: #fde68a;
+}
+
+.cyber-flash.info {
+    background: #1e3a8a;
+    color: #bfdbfe;
+}
+
+/* ============================================================
+   EMPTY STATE
+============================================================ */
+
+.cyber-empty {
+    background: #111c2e;
+    border: 1px dashed #475569;
+    border-radius: 12px;
+    padding: 35px;
+    text-align: center;
+}
+
+/* ============================================================
+   RESPONSIVE
+============================================================ */
+
+@media(max-width: 900px) {
 
     .cyber-grid {
         grid-template-columns: repeat(2, 1fr);
@@ -118,10 +283,23 @@
 
 }
 
-@media(max-width: 500px) {
+@media(max-width: 550px) {
+
+    .cyber-container {
+        padding: 12px;
+    }
 
     .cyber-grid {
         grid-template-columns: 1fr;
+    }
+
+    .cyber-panel,
+    .cyber-incident {
+        padding: 16px;
+    }
+
+    .cyber-header {
+        align-items: flex-start;
     }
 
 }
@@ -131,24 +309,57 @@
 
 <div class="cyber-container">
 
-    <h1>Dataset Security Analysis</h1>
 
-    <p class="cyber-muted">
-        Upload security logs to perform complete
-        AI-powered threat detection and investigation.
-    </p>
+    <!-- ====================================================
+         PAGE HEADER
+    ===================================================== -->
+
+    <div class="cyber-header">
+
+        <div>
+
+            <h1 class="cyber-heading">
+                Dataset Security Analysis
+            </h1>
+
+            <p class="cyber-muted">
+
+                Upload security logs to perform complete
+                AI-powered threat detection and investigation.
+
+            </p>
+
+        </div>
 
 
-    <!-- ========================================= -->
-    <!-- FLASH MESSAGES -->
-    <!-- ========================================= -->
+        <div class="cyber-header-actions">
+
+            <a
+                href="{{ url_for('dataset_analysis_history') }}"
+                class="cyber-button cyber-button-history"
+            >
+
+                View Analysis History
+
+            </a>
+
+        </div>
+
+    </div>
+
+
+    <!-- ====================================================
+         FLASH MESSAGES
+    ===================================================== -->
 
     {% with messages = get_flashed_messages(with_categories=true) %}
 
         {% for category, message in messages %}
 
-            <div class="cyber-panel">
+            <div class="cyber-flash {{ category }}">
+
                 {{ message }}
+
             </div>
 
         {% endfor %}
@@ -156,19 +367,25 @@
     {% endwith %}
 
 
-    <!-- ========================================= -->
-    <!-- DATASET UPLOAD -->
-    <!-- ========================================= -->
+    <!-- ====================================================
+         DATASET UPLOAD
+    ===================================================== -->
 
     <div class="cyber-panel">
 
-        <h2>Upload Security Log Dataset</h2>
+        <h2 class="cyber-heading">
+            Upload Security Log Dataset
+        </h2>
 
         <p class="cyber-muted">
+
             Required CSV columns:
+
             timestamp, user, ip_address,
             event_type, status, resource.
+
         </p>
+
 
         <form
             method="POST"
@@ -177,7 +394,16 @@
 
             <div class="cyber-upload">
 
-                <h3>Select CSV Dataset</h3>
+                <h3>
+                    Select CSV Dataset
+                </h3>
+
+                <p class="cyber-muted">
+
+                    Upload your security log CSV file
+                    to begin threat detection.
+
+                </p>
 
                 <input
                     type="file"
@@ -188,11 +414,14 @@
 
             </div>
 
+
             <button
                 class="cyber-button"
                 type="submit"
             >
+
                 Run Complete Threat Analysis
+
             </button>
 
         </form>
@@ -200,288 +429,661 @@
     </div>
 
 
-    <!-- ========================================= -->
-    <!-- RESULTS -->
-    <!-- ========================================= -->
+    <!-- ====================================================
+         ANALYSIS RESULTS
+    ===================================================== -->
 
     {% if results %}
 
+
+        <!-- ================================================
+             DATASET SUMMARY
+        ================================================= -->
+
         <div class="cyber-panel">
 
-            <h2>Dataset Analysis Summary</h2>
+            <div class="cyber-header">
 
-            <p class="cyber-muted">
-                Dataset: {{ filename }}
-            </p>
+                <div>
 
-            <div class="cyber-grid">
+                    <h2 class="cyber-heading">
+                        Dataset Analysis Summary
+                    </h2>
 
-                <div class="cyber-stat">
+                    <p class="cyber-muted">
 
-                    Logs Processed
+                        Dataset:
 
-                    <strong>
-                        {{ results.total_logs }}
-                    </strong>
+                        <strong>
+                            {{ filename or "Uploaded dataset" }}
+                        </strong>
 
-                </div>
-
-
-                <div class="cyber-stat">
-
-                    Rule Findings
-
-                    <strong>
-                        {{ results.rule_count }}
-                    </strong>
+                    </p>
 
                 </div>
 
 
-                <div class="cyber-stat">
+                <div class="cyber-header-actions">
 
-                    ML Anomalies
+                    {% if results.history_id %}
 
-                    <strong>
-                        {{ results.ml_count }}
-                    </strong>
+                        <a
+                            href="{{ url_for(
+                                'download_dataset_history',
+                                run_id=results.history_id
+                            ) }}"
+                            class="cyber-button cyber-button-download"
+                        >
 
-                </div>
+                            Download DOCX Report
+
+                        </a>
+
+                    {% endif %}
 
 
-                <div class="cyber-stat">
+                    <a
+                        href="{{ url_for('dataset_analysis_history') }}"
+                        class="cyber-button cyber-button-history"
+                    >
 
-                    Incidents
+                        View All Reports
 
-                    <strong>
-                        {{ results.incident_count }}
-                    </strong>
+                    </a>
 
                 </div>
 
             </div>
 
+
+            <!-- SUMMARY STATISTICS -->
+
+            <div class="cyber-grid">
+
+
+                <div class="cyber-stat">
+
+                    <span class="cyber-stat-label">
+                        Logs Processed
+                    </span>
+
+                    <strong>
+                        {{ results.total_logs | default(0) }}
+                    </strong>
+
+                </div>
+
+
+                <div class="cyber-stat">
+
+                    <span class="cyber-stat-label">
+                        Rule Findings
+                    </span>
+
+                    <strong>
+                        {{ results.rule_count | default(0) }}
+                    </strong>
+
+                </div>
+
+
+                <div class="cyber-stat">
+
+                    <span class="cyber-stat-label">
+                        ML Anomalies
+                    </span>
+
+                    <strong>
+                        {{ results.ml_count | default(0) }}
+                    </strong>
+
+                </div>
+
+
+                <div class="cyber-stat">
+
+                    <span class="cyber-stat-label">
+                        Incidents
+                    </span>
+
+                    <strong>
+                        {{ results.incident_count | default(0) }}
+                    </strong>
+
+                </div>
+
+
+            </div>
+
+
             <br>
+
 
             <p class="cyber-muted">
 
                 Saved incidents:
-                {{ results.saved_incident_count }}
+
+                <strong>
+                    {{ results.saved_incident_count | default(0) }}
+                </strong>
 
                 <br>
 
                 Saved AI reports:
-                {{ results.saved_analysis_count }}
+
+                <strong>
+                    {{ results.saved_analysis_count | default(0) }}
+                </strong>
 
             </p>
+
+
+            {% if results.history_id %}
+
+                <p class="cyber-muted">
+
+                    History ID:
+
+                    {{ results.history_id }}
+
+                </p>
+
+            {% endif %}
 
         </div>
 
 
-        <!-- ===================================== -->
-        <!-- INCIDENT RESULTS -->
-        <!-- ===================================== -->
+        <!-- =================================================
+             INCIDENT RESULTS
+        ================================================== -->
 
         {% if results.incidents %}
 
-            <h2>Detected Threats and AI Reports</h2>
+
+            <h2 class="cyber-heading">
+                Detected Threats and AI Reports
+            </h2>
+
 
             {% for item in results.incidents %}
 
-                <div class="cyber-incident {{ item.severity }}">
+
+                <div class="cyber-incident {{ item.severity | default('LOW') | upper }}">
+
+
+                    <!-- INCIDENT HEADER -->
 
                     <h2>
+
                         Incident #{{ item.incident_id }}
+
                     </h2>
 
+
                     <p>
+
                         <strong>IP Address:</strong>
+
                         {{ item.ip_address }}
+
                     </p>
 
+
                     <p>
+
                         <strong>Severity:</strong>
+
                         {{ item.severity }}
+
                     </p>
 
+
                     <p>
+
                         <strong>Security Score:</strong>
+
                         {{ item.security_score }}/100
+
                     </p>
 
+
                     <p>
+
                         <strong>ML Anomaly:</strong>
+
                         {{ "Yes" if item.ml_anomaly else "No" }}
+
                     </p>
+
 
                     <p>
+
                         <strong>Anomaly Score:</strong>
+
                         {{ item.anomaly_score }}
+
                     </p>
 
 
-                    <!-- RULE RESULTS -->
+                    <!-- =====================================
+                         RULE RESULTS
+                    ====================================== -->
 
                     <div class="cyber-section">
 
-                        <h3>Rule-Based Detection</h3>
+                        <h3>
+                            Rule-Based Detection
+                        </h3>
+
 
                         {% if item.rule_details %}
 
+
                             {% for rule in item.rule_details %}
 
-                                <p>
 
-                                    <strong>
-                                        {{ rule.rule }}
-                                    </strong>
+                                <div class="cyber-recommendation">
 
-                                    <br>
+                                    <p>
 
-                                    {{ rule.reason }}
+                                        <strong>
+                                            {{ rule.rule | default("Security rule") }}
+                                        </strong>
 
-                                    <br>
+                                    </p>
 
-                                    Severity:
-                                    {{ rule.severity }}
 
-                                </p>
+                                    <p class="cyber-report">
+
+                                        {{ rule.reason | default("No reason provided.") }}
+
+                                    </p>
+
+
+                                    <p>
+
+                                        <strong>Severity:</strong>
+
+                                        {{ rule.severity | default("N/A") }}
+
+                                    </p>
+
+                                </div>
+
 
                             {% endfor %}
 
+
                         {% else %}
 
+
                             <p class="cyber-muted">
+
                                 No rule-based finding for this IP.
+
                             </p>
+
 
                         {% endif %}
 
                     </div>
 
 
-                    <!-- ML RESULTS -->
+                    <!-- =====================================
+                         ML RESULTS
+                    ====================================== -->
 
                     <div class="cyber-section">
 
-                        <h3>ML Threat Prediction</h3>
+                        <h3>
+                            ML Threat Prediction
+                        </h3>
+
 
                         <pre class="cyber-pre">{{ item.ml_details | tojson(indent=2) }}</pre>
 
+
                         <p class="cyber-muted">
+
                             Isolation Forest detects unusual
                             behavioral patterns. An anomaly
                             is not proof of an attack.
+
                         </p>
 
                     </div>
 
 
-                    <!-- RAG RESULTS -->
+                    <!-- =====================================
+                         RAG RESULTS
+                    ====================================== -->
 
                     <div class="cyber-section">
 
-                        <h3>RAG Retrieved Knowledge</h3>
+                        <h3>
+                            RAG Retrieved Knowledge
+                        </h3>
+
 
                         <p>
+
                             <strong>Retrieval Query:</strong>
-                            {{ item.rag_query }}
+
+                            {{ item.rag_query | default("Not available") }}
+
                         </p>
 
-                        <h4>Knowledge Sources</h4>
 
-                        {% for source in item.sources %}
+                        <h4>
+                            Knowledge Sources
+                        </h4>
 
-                            <span class="cyber-tag">
-                                {{ source.source }}
-                            </span>
 
-                        {% endfor %}
+                        {% if item.sources %}
+
+
+                            {% for source in item.sources %}
+
+
+                                <span class="cyber-tag">
+
+                                    {% if source is mapping %}
+
+                                        {{ source.source | default(source.source_file | default("Knowledge source")) }}
+
+                                    {% else %}
+
+                                        {{ source }}
+
+                                    {% endif %}
+
+                                </span>
+
+
+                            {% endfor %}
+
+
+                        {% else %}
+
+
+                            <p class="cyber-muted">
+                                No knowledge sources available.
+                            </p>
+
+
+                        {% endif %}
+
+
+                        <h4>
+                            Retrieved Context
+                        </h4>
+
 
                         <div class="cyber-report">
-                            {{ item.rag_context }}
+
+                            {{ item.rag_context | default("No RAG context available.") }}
+
                         </div>
 
                     </div>
 
 
-                    <!-- LOG ANALYSIS -->
+                    <!-- =====================================
+                         AI LOG ANALYSIS
+                    ====================================== -->
 
                     <div class="cyber-section">
 
-                        <h3>AI Log Analysis</h3>
+                        <h3>
+                            AI Log Analysis
+                        </h3>
+
 
                         <div class="cyber-report">
-                            {{ item.log_analysis }}
+
+                            {{ item.log_analysis | default("Analysis not generated.") }}
+
                         </div>
 
                     </div>
 
 
-                    <!-- THREAT CLASSIFICATION -->
+                    <!-- =====================================
+                         THREAT CLASSIFICATION
+                    ====================================== -->
 
                     <div class="cyber-section">
 
-                        <h3>AI Threat Classification</h3>
+                        <h3>
+                            AI Threat Classification
+                        </h3>
+
 
                         <div class="cyber-report">
-                            {{ item.threat_classification }}
+
+                            {{ item.threat_classification | default("Classification not generated.") }}
+
                         </div>
 
                     </div>
 
 
-                    <!-- RECOMMENDATIONS -->
+                    <!-- =====================================
+                         RECOMMENDATIONS
+                    ====================================== -->
 
                     <div class="cyber-section">
 
-                        <h3>AI Recommended Actions</h3>
+                        <h3>
+                            AI Recommended Actions
+                        </h3>
 
-                        <div class="cyber-report">
-                            {{ item.recommendation }}
-                        </div>
+
+                        {% set recommendations = item.recommendation %}
+
+
+                        {% if recommendations is string %}
+
+                            {% set recommendations = recommendations | from_json %}
+
+                        {% endif %}
+
+
+                        {% if recommendations is mapping %}
+
+
+                            {% set recommendations = [recommendations] %}
+
+
+                        {% endif %}
+
+
+                        {% if recommendations is sequence and recommendations is not string %}
+
+
+                            {% for recommendation in recommendations %}
+
+
+                                {% if recommendation is mapping %}
+
+
+                                    <div class="cyber-recommendation">
+
+
+                                        <span class="cyber-priority {{ recommendation.priority | default('P3') }}">
+
+                                            {{ recommendation.priority | default("P3") }}
+
+                                        </span>
+
+
+                                        <p>
+
+                                            <strong>
+                                                Action:
+                                            </strong>
+
+                                            {{ recommendation.action | default("Not provided") }}
+
+                                        </p>
+
+
+                                        <p>
+
+                                            <strong>
+                                                Reason:
+                                            </strong>
+
+                                            {{ recommendation.reason | default("Not provided") }}
+
+                                        </p>
+
+
+                                        <p>
+
+                                            <strong>
+                                                Verification:
+                                            </strong>
+
+                                            {{ recommendation.verification | default("Analyst verification required") }}
+
+                                        </p>
+
+
+                                    </div>
+
+
+                                {% else %}
+
+
+                                    <div class="cyber-report">
+
+                                        {{ recommendation }}
+
+                                    </div>
+
+
+                                {% endif %}
+
+
+                            {% endfor %}
+
+
+                        {% else %}
+
+
+                            <div class="cyber-report">
+
+                                {{ item.recommendation | default("No recommendations generated.") }}
+
+                            </div>
+
+
+                        {% endif %}
 
                     </div>
 
 
-                    <!-- FINAL REPORT -->
+                    <!-- =====================================
+                         FINAL REPORT
+                    ====================================== -->
 
                     <div class="cyber-section">
 
-                        <h3>Final Incident Report</h3>
+                        <h3>
+                            Final Incident Report
+                        </h3>
+
 
                         <div class="cyber-report">
-                            {{ item.report }}
+
+                            {{ item.report | default("Final report not generated.") }}
+
                         </div>
 
                     </div>
+
+
+                    <!-- =====================================
+                         INCIDENT ACTION
+                    ====================================== -->
+
+                    <div class="cyber-section">
+
+                        <a
+                            href="{{ url_for(
+                                'download_dataset_history',
+                                run_id=results.history_id
+                            ) if results.history_id else url_for('dataset_analysis_history') }}"
+                            class="cyber-button cyber-button-download"
+                        >
+
+                            Download Dataset Report
+
+                        </a>
+
+                    </div>
+
 
                 </div>
 
+
             {% endfor %}
+
 
         {% else %}
 
+
+            <!-- =========================================
+                 NO INCIDENTS
+            ========================================== -->
+
             <div class="cyber-panel">
 
-                <h2>No Incidents Detected</h2>
+                <h2>
+                    No Incidents Detected
+                </h2>
+
 
                 <p>
+
                     The configured rules and ML model
                     did not flag any IP group in this dataset.
+
                 </p>
 
+
                 <p class="cyber-muted">
+
                     This does not prove that all activity
                     in the dataset is safe.
+
                 </p>
+
 
             </div>
 
+
         {% endif %}
+
 
     {% endif %}
 
+
+    <!-- ====================================================
+         PAGE FOOTER
+    ===================================================== -->
+
+    <div class="cyber-muted"
+         style="text-align:center; margin-top:35px; font-size:12px;">
+
+        CyberShieldGPT |
+        Intelligent Security Log Analysis using Agentic AI
+
+    </div>
+
+
 </div>
+
 
 {% endblock %}
